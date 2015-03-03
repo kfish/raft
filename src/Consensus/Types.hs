@@ -1,7 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Consensus.Types (
-    Protocol(..)
+      Store(..)
+    , Protocol(..)
 
     , Identifier
 ) where
@@ -21,7 +22,7 @@ class Store s where
     data Value s :: *
 
     -- | Query the value at a given index
-    query :: Monad m => Int -> s -> m (Value s)
+    query :: Monad m => Int -> s -> m (Maybe (Value s))
 
     -- | Store a value at a given index
     store :: Monad m => Int -> Value s -> s -> m s

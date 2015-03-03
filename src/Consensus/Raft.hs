@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -11,6 +12,7 @@ module Consensus.Raft (
 ) where
 
 import Data.Map (Map)
+import Data.Traversable (Traversable)
 
 import qualified Consensus.Types as Consensus
 
@@ -27,9 +29,7 @@ class HasTerm a where
 
 newtype Index = Index Int
 
-type Log a = [a]
-
-data RaftPersistentState a = RaftPersistentState
+data RaftPersistentState s = RaftPersistentState
     {
 
     -- | Latest term server has seen (initialized to 0 on first boot,
@@ -41,7 +41,7 @@ data RaftPersistentState a = RaftPersistentState
 
     -- log entries; each entry contains command for state machine, and term
     -- when entry was received by leader (first index is 1)
-    , log :: Log a
+    , log :: Consensus.Store s => s
     }
 
 data RaftVolatileState = RaftVolatileState
@@ -97,7 +97,7 @@ data AppendEntries a = AppendEntries
 
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
-    , entries :: [a]
+    , entries :: Traversable t => t a
 
     -- Leader's commitIndex
     , leaderCommit :: Index
@@ -139,15 +139,19 @@ data RequestVoteResponse = RequestVoteResponse
 ----------------------------------------------------------------------
 
 instance Consensus.Protocol (Raft a) where
-    data Request (Raft a) = AE (AppendEntries a) | RV RequestVote
+    data Request (Raft a) = AE (AppendEntries a)
+                          | RV RequestVote
 
-    data Response (Raft a) = AER AppendEntriesResponse | RVR RequestVoteResponse
+    data Response (Raft a) = AER AppendEntriesResponse
+                           | RVR RequestVoteResponse
 
     step raft (AE AppendEntries{..})
         -- Reply False if term < currentTerm
-        | aeTerm < term = (raft, RVR (RequestVoteResponse term False))
+        | aeTerm < term = (raft, RVR$ RequestVoteResponse term False)
+
         -- Reply False if log doesn't contain an entry at prevLogIndex
         -- whose term matches prevLogTerm
+        -- | 
 
         -- If an existing entry conflicts with a new one (same index but
         -- different terms), delete the existing entry and all that
@@ -161,13 +165,13 @@ instance Consensus.Protocol (Raft a) where
 
     step raft (RV RequestVote{..})
         -- Reply False if term < currentTerm
-        | rvTerm < term = (raft, RVR (RequestVoteResponse term False))
+        | rvTerm < term = (raft, RVR$ RequestVoteResponse term False)
 
         -- If votedFor is null or candidateId, and candidate's log is at
         -- least as up-to-date as receiver's log, grant vote
         | (vf == Nothing || vf == Just candidateId) &&
           undefined
-          = (raft, RVR (RequestVoteResponse rvTerm True))
+          = (raft, RVR$ RequestVoteResponse rvTerm True)
       where
         term = currentTerm (pstate raft)
         vf = votedFor (pstate raft)
