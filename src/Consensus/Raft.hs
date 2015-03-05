@@ -17,15 +17,6 @@ import Data.Traversable (Traversable)
 import qualified Consensus.Types as Consensus
 
 ----------------------------------------------------------------------
--- Term
-
-newtype Term = Term Int
-    deriving (Eq, Ord)
-
-class HasTerm a where
-    termOf :: a -> Term
-
-----------------------------------------------------------------------
 
 newtype Index = Index Int
 
@@ -34,7 +25,7 @@ data RaftPersistentState s = RaftPersistentState
 
     -- | Latest term server has seen (initialized to 0 on first boot,
     -- increases monotonically
-      currentTerm :: Term
+      currentTerm :: Consensus.Term
 
     -- candidateId that received vote in current term (or Nothing if none)
     , votedFor :: Maybe Consensus.Identifier
@@ -49,11 +40,11 @@ data RaftVolatileState = RaftVolatileState
 
     -- | Index of highest log entry known to be committed (initialized to 0,
     -- increases monotonically)
-      commitIndex :: Int
+      commitIndex :: Index
 
     -- | Index of highest log entry applied to state machine (initalized to 0,
     -- increases monotonically)
-    , lastApplied :: Int
+    , lastApplied :: Index
     }
 
 data RaftLeaderVolatileState = RaftLeaderVolatileState
@@ -84,7 +75,7 @@ pstate (RaftCandidate rps _) = rps
 data AppendEntries a = AppendEntries
     {
     -- Leader's term
-      aeTerm :: Term
+      aeTerm :: Consensus.Term
 
     -- So follower can redirect clients
     , leaderId :: Consensus.Identifier
@@ -93,7 +84,7 @@ data AppendEntries a = AppendEntries
     , prevLogIndex :: Index
 
     -- Term of prevLogIndex entry
-    , prevLogTerm :: Term
+    , prevLogTerm :: Consensus.Term
 
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
@@ -106,7 +97,7 @@ data AppendEntries a = AppendEntries
 data AppendEntriesResponse = AppendEntriesResponse
     {
     -- currentTerm, for leader to update itself
-      aerTerm :: Term
+      aerTerm :: Consensus.Term
 
     -- True if follower contained entry matching prevLogIndex and prevLogTerm
     , aerSuccess :: Bool
@@ -115,7 +106,7 @@ data AppendEntriesResponse = AppendEntriesResponse
 data RequestVote = RequestVote
     {
     -- Candidate's term
-      rvTerm :: Term
+      rvTerm :: Consensus.Term
 
     -- Candidate requesting vote
     , candidateId :: Consensus.Identifier
@@ -124,13 +115,13 @@ data RequestVote = RequestVote
     , lastLogIndex :: Index
 
     -- Term of candidate's last log entry
-    , lastLogTerm :: Term
+    , lastLogTerm :: Consensus.Term
     }
 
 data RequestVoteResponse = RequestVoteResponse
     {
     -- currentTerm, for candidate to update itself
-      rvrTerm :: Term
+      rvrTerm :: Consensus.Term
 
     -- True means candidate received vote
     , voteGranted :: Bool
@@ -145,33 +136,55 @@ instance Consensus.Protocol (Raft a) where
     data Response (Raft a) = AER AppendEntriesResponse
                            | RVR RequestVoteResponse
 
-    step raft (AE AppendEntries{..})
+    step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
-        | aeTerm < term = (raft, RVR$ RequestVoteResponse term False)
+        | aeTerm < term = (receiver, AER$ AppendEntriesResponse term False)
 
-        -- Reply False if log doesn't contain an entry at prevLogIndex
-        -- whose term matches prevLogTerm
-        -- | 
+        | otherwise = do
 
-        -- If an existing entry conflicts with a new one (same index but
-        -- different terms), delete the existing entry and all that
-        -- follow it.
+            -- Reply False if log doesn't contain an entry at prevLogIndex
+            -- whose term matches prevLogTerm
+            t <- snd <$> query prevLogIndex s
+            if (t /= Just prevLogTerm)
+              then (receiver, AER$ AppendEntriesResponse term False)
+              else do
+
+
+            -- If an existing entry conflicts with a new one (same index but
+            -- different terms), delete the existing entry and all that
+            -- follow it.
+            when (t /= aeTerm)
+                truncate prevLogIndex s
 
         -- Append any new entries not already in the log
+            store ix entries aeTerm s
 
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
-      where
-        term = currentTerm (pstate raft)
 
-    step raft (RV RequestVote{..})
+                 (receiver, AER$ AppendEntriesResponse aeTerm True)
+      where
+        term = currentTerm (pstate receiver)
+
+        match prevLogIndex s Nothing = False
+        match prevLogIndex s (Just (v, t))  = t = prevLogIndex
+
+    -- Follower receiving RequestVote
+    step receiver@(RaftFollower p@RaftPersistentState{..} vol) (RV RequestVote{..})
         -- Reply False if term < currentTerm
-        | rvTerm < term = (raft, RVR$ RequestVoteResponse term False)
+        | rvTerm < currentTerm
+          = (receiver, RVR$ RequestVoteResponse currentTerm False)
 
         -- If votedFor is null or candidateId, and candidate's log is at
         -- least as up-to-date as receiver's log, grant vote
-        | (vf == Nothing || vf == Just candidateId) &&
-          undefined
-          = (raft, RVR$ RequestVoteResponse rvTerm True)
+        | (votedFor == Nothing || votedFor == Just candidateId)
+          && lastLogTerm <= currentTerm
+          = (RaftFollower granted vol, RVR$ RequestVoteResponse rvTerm True)
       where
-        term = currentTerm (pstate raft)
-        vf = votedFor (pstate raft)
+        granted = p { votedFor = Just candidateId }
+
+    -- Leader or Candidate receiving RequestVote
+
+    -- ??? If a server that is not a Follower receives a RequestVote, return False
+    -- ??? what term to return? update volatile term?
+    step receiver (RV _)
+      = (receiver, RVR$ RequestVoteResponse (currentTerm (pstate receiver)) False)
