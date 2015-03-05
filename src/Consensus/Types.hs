@@ -8,6 +8,8 @@ module Consensus.Types (
     , Protocol(..)
 ) where
 
+import Data.Traversable (Traversable)
+
 ----------------------------------------------------------------------
 
 type Identifier = Int

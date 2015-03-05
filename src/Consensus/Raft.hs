@@ -11,6 +11,7 @@ https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf
 module Consensus.Raft (
 ) where
 
+import Control.Applicative ((<$>))
 import Data.Map (Map)
 import Data.Traversable (Traversable)
 
@@ -144,7 +145,7 @@ instance Consensus.Protocol (Raft a) where
 
             -- Reply False if log doesn't contain an entry at prevLogIndex
             -- whose term matches prevLogTerm
-            t <- snd <$> query prevLogIndex s
+            t <- snd <$> Consensus.query prevLogIndex s
             if (t /= Just prevLogTerm)
               then (receiver, AER$ AppendEntriesResponse term False)
               else do
@@ -166,7 +167,7 @@ instance Consensus.Protocol (Raft a) where
         term = currentTerm (pstate receiver)
 
         match prevLogIndex s Nothing = False
-        match prevLogIndex s (Just (v, t))  = t = prevLogIndex
+        match prevLogIndex s (Just (v, t)) = t == prevLogIndex
 
     -- Follower receiving RequestVote
     step receiver@(RaftFollower p@RaftPersistentState{..} vol) (RV RequestVote{..})
