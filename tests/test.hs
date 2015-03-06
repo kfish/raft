@@ -12,22 +12,22 @@ main = defaultMain tests
 ------------------------------------------------------------
 
 tests :: TestTree
-tests = testGroup "Tests" [properties, unitTests]
+tests = testGroup "Tests" [unitTests]
 
 voom :: [a] -> [a]
 voom _ = []
 
 unitTests = testGroup "Unit tests"
-  [ testCase "Simplify renamings" $
+  [ testCase "Store nothing" $
       voom ([] :: [(Int, Maybe Int)])
         @?= []
-  , testCase "Simplify renamings" $
+  , testCase "Store nothing again" $
       voom [(1, Just 2), (2, Just 3)]
         @?= []
-  , testCase "Simplify renamings" $
+  , testCase "Store zero items" $
       voom [(1, Just 2), (7, Just 8), (2, Just 3)]
         @?= []
-  , testCase "Simplify renamings" $
+  , testCase "Store zen" $
       voom [(1, Just 2), (1, Just 5), (2, Just 3)]
         @?= []
   ]

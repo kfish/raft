@@ -141,7 +141,10 @@ instance Consensus.Protocol (Raft a) where
         -- Reply False if term < currentTerm
         | aeTerm < term = (receiver, AER$ AppendEntriesResponse term False)
 
-        | otherwise = do
+        | otherwise =
+
+{-
+                      do
 
             -- Reply False if log doesn't contain an entry at prevLogIndex
             -- whose term matches prevLogTerm
@@ -161,6 +164,7 @@ instance Consensus.Protocol (Raft a) where
             store ix entries aeTerm s
 
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
+        -}
 
                  (receiver, AER$ AppendEntriesResponse aeTerm True)
       where
