@@ -2,17 +2,20 @@
 
 module Consensus.Types (
       Identifier
+    , Index
     , Term(..)
 
     , Store(..)
     , Protocol(..)
 ) where
 
-import Data.Traversable (Traversable)
+import Data.Foldable (Foldable)
 
 ----------------------------------------------------------------------
 
 type Identifier = Int
+
+type Index = Int
 
 ----------------------------------------------------------------------
 -- Term
@@ -35,16 +38,16 @@ class Node a where
 
 class Store s where
 
-    data Value s :: *
+    type Value s :: *
 
     -- | Query the value at a given index
-    query :: Monad m => Int -> s -> m (Maybe (Value s, Term))
+    query :: Monad m => Index -> s -> m (Maybe (Value s, Term))
 
     -- | Store a value at a given index
-    store :: (Traversable t, Monad m) =>
+    store :: (Foldable t, Monad m) =>
         Int -> t (Value s) -> Term -> s -> m s
 
-    commit :: Monad m => Int -> s -> m ()
+    commit :: Monad m => Int -> s -> m s
 
     -- | Delete a given entry and all that follow it
     truncate :: Monad m => Int -> s -> m s

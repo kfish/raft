@@ -9,17 +9,16 @@ https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf
 -}
 
 module Consensus.Raft (
+
 ) where
 
 import Control.Applicative ((<$>))
 import Data.Map (Map)
-import Data.Traversable (Traversable)
+import Data.Foldable (Foldable)
 
 import qualified Consensus.Types as Consensus
 
 ----------------------------------------------------------------------
-
-newtype Index = Index Int
 
 data RaftPersistentState s = RaftPersistentState
     {
@@ -41,11 +40,11 @@ data RaftVolatileState = RaftVolatileState
 
     -- | Index of highest log entry known to be committed (initialized to 0,
     -- increases monotonically)
-      commitIndex :: Index
+      commitIndex :: Consensus.Index
 
     -- | Index of highest log entry applied to state machine (initalized to 0,
     -- increases monotonically)
-    , lastApplied :: Index
+    , lastApplied :: Consensus.Index
     }
 
 data RaftLeaderVolatileState = RaftLeaderVolatileState
@@ -82,17 +81,17 @@ data AppendEntries a = AppendEntries
     , leaderId :: Consensus.Identifier
 
     -- Index of log entry immediately preceding new ones
-    , prevLogIndex :: Index
+    , prevLogIndex :: Consensus.Index
 
     -- Term of prevLogIndex entry
     , prevLogTerm :: Consensus.Term
 
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
-    , entries :: Traversable t => t a
+    , entries :: Foldable t => t a
 
     -- Leader's commitIndex
-    , leaderCommit :: Index
+    , leaderCommit :: Consensus.Index
     }
 
 data AppendEntriesResponse = AppendEntriesResponse
@@ -113,7 +112,7 @@ data RequestVote = RequestVote
     , candidateId :: Consensus.Identifier
 
     -- Index of candidate's last log entry
-    , lastLogIndex :: Index
+    , lastLogIndex :: Consensus.Index
 
     -- Term of candidate's last log entry
     , lastLogTerm :: Consensus.Term
