@@ -21,7 +21,7 @@ type Index = Int
 -- Term
 
 newtype Term = Term Int
-    deriving (Eq, Ord)
+    deriving (Show, Eq, Ord)
 
 class HasTerm a where
     termOf :: a -> Term
@@ -47,10 +47,10 @@ class Store s where
     store :: (Foldable t, Monad m) =>
         Int -> t (Value s) -> Term -> s -> m s
 
-    commit :: Monad m => Int -> s -> m s
+    commit :: Monad m => Index -> s -> m s
 
     -- | Delete a given entry and all that follow it
-    truncate :: Monad m => Int -> s -> m s
+    truncate :: Monad m => Index -> s -> m s
 
 
 class Protocol p where

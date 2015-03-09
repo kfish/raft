@@ -42,6 +42,7 @@ test-suite test
   build-depends:
       base >= 4 && < 5
     , containers >=0.5 && <0.6
+    , transformers >= 0.4
     , tasty >= 0.7
     , tasty-hunit
     , tasty-quickcheck
