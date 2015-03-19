@@ -9,6 +9,8 @@ module Consensus.Types (
     , Protocol(..)
 ) where
 
+import Control.Applicative ((<$>))
+import Data.Binary
 import Data.Foldable (Foldable)
 
 ----------------------------------------------------------------------
@@ -22,6 +24,10 @@ type Index = Int
 
 newtype Term = Term Int
     deriving (Show, Eq, Ord)
+
+instance Binary Term where
+    put (Term x) = put x
+    get = Term <$> get
 
 class HasTerm a where
     termOf :: a -> Term

@@ -29,6 +29,7 @@ library
 
   build-depends:
       base >=4.7 && <4.8
+    , binary
     , containers >=0.5 && <0.6
 
 test-suite test

@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -12,9 +15,11 @@ module Consensus.Raft (
 
 ) where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
+import Data.Binary
 import Data.Map (Map)
 import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 
 import qualified Consensus.Types as Consensus
 
@@ -72,7 +77,7 @@ pstate (RaftCandidate rps _) = rps
 -- RPC
 --
 
-data AppendEntries a = AppendEntries
+data AppendEntries t a = AppendEntries
     {
     -- Leader's term
       aeTerm :: Consensus.Term
@@ -88,11 +93,21 @@ data AppendEntries a = AppendEntries
 
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
-    , entries :: Foldable t => t a
+    , entries :: t a
 
     -- Leader's commitIndex
     , leaderCommit :: Consensus.Index
     }
+
+instance (Foldable t, Binary a, Binary (t a)) => Binary (AppendEntries t a) where
+    put AppendEntries{..} = do
+      put aeTerm
+      put leaderId
+      put prevLogIndex
+      put prevLogTerm
+      Fold.mapM_ put entries
+      put leaderCommit
+    get = AppendEntries <$> get <*> get <*> get <*> get <*> get <*> get
 
 data AppendEntriesResponse = AppendEntriesResponse
     {
@@ -102,6 +117,12 @@ data AppendEntriesResponse = AppendEntriesResponse
     -- True if follower contained entry matching prevLogIndex and prevLogTerm
     , aerSuccess :: Bool
     }
+
+instance Binary AppendEntriesResponse where
+    put AppendEntriesResponse{..} = do
+      put aerTerm
+      put aerSuccess
+    get = AppendEntriesResponse <$> get <*> get
 
 data RequestVote = RequestVote
     {
@@ -118,6 +139,14 @@ data RequestVote = RequestVote
     , lastLogTerm :: Consensus.Term
     }
 
+instance Binary RequestVote where
+    put RequestVote{..} = do
+      put rvTerm
+      put candidateId
+      put lastLogIndex
+      put lastLogTerm
+    get = RequestVote <$> get <*> get <*> get <*> get
+
 data RequestVoteResponse = RequestVoteResponse
     {
     -- currentTerm, for candidate to update itself
@@ -127,14 +156,20 @@ data RequestVoteResponse = RequestVoteResponse
     , voteGranted :: Bool
     }
 
+instance Binary RequestVoteResponse where
+    put RequestVoteResponse{..} = do
+      put rvrTerm
+      put voteGranted
+    get = RequestVoteResponse <$> get <*> get
+
 ----------------------------------------------------------------------
 
-instance Consensus.Protocol (Raft a) where
-    data Request (Raft a) = AE (AppendEntries a)
-                          | RV RequestVote
+instance (Foldable t) => Consensus.Protocol (Raft (t a)) where
+    data Request (Raft (t a)) = AE (AppendEntries t a)
+                              | RV RequestVote
 
-    data Response (Raft a) = AER AppendEntriesResponse
-                           | RVR RequestVoteResponse
+    data Response (Raft (t a)) = AER AppendEntriesResponse
+                               | RVR RequestVoteResponse
 
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
