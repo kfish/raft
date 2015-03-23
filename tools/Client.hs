@@ -105,23 +105,22 @@ cmdGet = Command [("get", parser)]
     []
     []
   where
-    parser = CmdGet <$ skipSpace1 <*> takeWhile1 (not . isSpace)
+    parser = CmdGet <$ skipSpace <*> takeWhile1 (not . isSpace)
 
 cmdSet :: Command S.ByteString Int
 cmdSet = Command [("set", parser)]
     []
     []
   where
-    parser = CmdSet <$ skipSpace1 <*> takeWhile1 (not . isSpace) <* skipSpace1 <*> decimal
+    parser = CmdSet <$ skipSpace
+                 <*> (takeWhile1 (\x -> not (isSpace x) && x /= '=')
+                         <* skipMany space <* char '=' <* skipMany space)
+                 <*> decimal
 
 cmdSleep :: Command S.ByteString Int
 cmdSleep = Command [("sleep", parser)]
     []
     []
   where
-    parser = CmdSleep <$ skipSpace1 <*> decimal
+    parser = CmdSleep <$ skipSpace <*> decimal
 
-----------------------------------------------------------------------
-
-skipSpace1 :: Atto.Parser ()
-skipSpace1 = satisfy isSpace >> skipSpace
