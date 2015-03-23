@@ -48,9 +48,11 @@ instance CS.Store SqliteStore where
 
     -- open = ensureConnection empty
 
-    query ix (SqliteStore conn s _) = do
+    query ix (SqliteStore conn s _) = return Nothing
+{-
         listToMaybe <$> Sqlite.query_ conn
           ("SELECT * FROM kv WHERE key=(?)" (Sqlite.Only ix))
+-}
 
     store ix xs term (SqliteStore conn s c) =
         return . (\m -> SqliteStore conn m c) . fst $
