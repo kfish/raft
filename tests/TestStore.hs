@@ -5,10 +5,10 @@
 module TestStore (
     TestStore(..)
   , empty
-  , testQuery
-  , testStore
-  , testCommit
-  , testTruncate
+  -- , testQuery
+  -- , testStore
+  -- , testCommit
+  -- , testTruncate
 
   , testState
   , runTestStore
@@ -32,6 +32,10 @@ data TestStore = TestStore {
     , tsLatestCommit :: CS.Index
     }
 
+empty :: TestStore
+empty = TestStore Map.empty 0
+
+{-
 instance CS.Store TestStore where
     type Value TestStore = Int
 
@@ -47,9 +51,6 @@ instance CS.Store TestStore where
     truncate ix (TestStore s c) = return $ TestStore
         (fst (Map.split ix s)) (min ix c)
 
-empty :: TestStore
-empty = TestStore Map.empty 0
-
 testQuery :: CS.Index -> TestStore -> Maybe (Int, CS.Term)
 testQuery ix ts = runIdentity $ CS.query ix ts
 
@@ -61,6 +62,7 @@ testCommit ix ts = runIdentity $ CS.commit ix ts
 
 testTruncate :: CS.Index -> TestStore -> TestStore
 testTruncate ix ts = runIdentity $ CS.truncate ix ts
+-}
 
 ----------------------------------------------------------------------
 

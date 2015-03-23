@@ -10,4 +10,4 @@ class Protocol p where
 
     type Response p :: *
 
-    step :: p -> Request p -> (p, Maybe (Response p))
+    step :: Monad m => p -> Request p -> m (p, Maybe (Response p))
