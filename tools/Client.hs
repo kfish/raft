@@ -16,10 +16,12 @@ import Data.Char (isSpace)
 import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Functor.Identity (Identity)
-import Data.List (sortBy)
+import Data.List (isPrefixOf, sortBy)
+import Data.Maybe (fromMaybe)
 
 import System.Console.Haskeline
-import System.Environment (getArgs)
+import System.Environment (getArgs, getEnvironment)
+import System.FilePath ((</>))
 import System.IO
 
 data Client k v = Client
@@ -51,7 +53,9 @@ main = do
 shell :: (Show k, Show v) => [Command k v] -> Client k v -> IO ()
 shell commands0 env0 = do
     S.putStrLn $ "type help for help"
-    let settings = defaultSettings
+    home <- fromMaybe "." . lookup "HOME" <$> getEnvironment
+    let settings = setComplete (completeWordWithPrev Nothing " \t" (clientComplete commands0))
+            defaultSettings { historyFile = Just $ home </> ".raft_history" }
     runInputT settings loop `evalStateT` env0
   where
     comment = fst . break ('#' ==)
@@ -65,6 +69,19 @@ shell commands0 env0 = do
                 Left err -> outputStrLn $ "parse error: " ++ show err
                 Right cmd -> lift $ execCommand cmd
         loop
+
+clientComplete :: Monad m => [Command k v] -> String -> String -> m [Completion]
+clientComplete commands0 rPrev = return . map simpleCompletion .
+    possible (words (reverse rPrev))
+  where
+
+    possible :: [String] -> String -> [String]
+    possible prior current = case prior of
+        [] -> prefixes cmdNames
+        _  -> []
+      where
+        prefixes = filter (current `isPrefixOf`)
+        cmdNames = concatMap (map (S.unpack . fst) . commandParsers) commands0
 
 parseCommand :: [Command k v] -> Atto.Parser (Cmd k v)
 parseCommand commands0 = prefixChoice (concatMap commandParsers commands0)

@@ -42,6 +42,7 @@ executable raft-client
     , attoparsec
     , bytestring
     , containers >=0.5 && <0.6
+    , filepath
     , haskeline
     , mtl >= 2.0
     , transformers >= 0.4
