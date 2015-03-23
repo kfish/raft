@@ -16,7 +16,8 @@ import Data.Char (isSpace)
 import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Functor.Identity (Identity)
-import Data.List (isPrefixOf, sortBy)
+import Data.List (intersperse, isPrefixOf, sort, sortBy)
+import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 
 import System.Console.Haskeline
@@ -32,6 +33,7 @@ data Cmd k v =
     CmdSet k v
   | CmdGet k
   | CmdSleep Int
+  | CmdHelp (Maybe S.ByteString)
   -- | CmdUse Host PortNumber
   -- | CmdPause
   -- | CmdDump
@@ -67,7 +69,7 @@ shell commands0 env0 = do
             env <- lift State.get
             case parseOnly (parseCommand commands0) ln of
                 Left err -> outputStrLn $ "parse error: " ++ show err
-                Right cmd -> lift $ execCommand cmd
+                Right cmd -> lift $ execCommand commands0 cmd
         loop
 
 clientComplete :: Monad m => [Command k v] -> String -> String -> m [Completion]
@@ -89,28 +91,84 @@ parseCommand commands0 = prefixChoice (concatMap commandParsers commands0)
     prefixChoice = choice . fmap both . sortBy (flip $ on compare fst)
     both (s, p) = try (string s *> p) -- try, in case p fails
 
-execCommand :: (Show k, Show v) => Cmd k v -> StateT (Client k v) IO ()
-execCommand cmd = case cmd of
+execCommand :: (Show k, Show v) => [Command k v] -> Cmd k v -> StateT (Client k v) IO ()
+execCommand commands0 cmd = case cmd of
     CmdSet k v -> liftIO . putStrLn $ "Set " ++ show k ++ " to " ++ show v
     CmdGet k -> liftIO . putStrLn $ "Get " ++ show k
     CmdSleep n -> liftIO . putStrLn $ "Sleep for " ++ show n
+    CmdHelp mCmd -> liftIO . putStrLn $ showMaybeCommandHelp commands0 mCmd
+
+showMaybeCommandHelp :: [Command k v] -> Maybe S.ByteString -> String
+showMaybeCommandHelp commands0 = maybe (showCommandsHelp False commands0) $ \cmd ->
+    showCommandsHelp True (filter (elem cmd . fmap fst . commandParsers) commands0)
+
+showCommandsHelp :: Bool -> [Command k v] -> String
+showCommandsHelp showExamples = removeBlanks . concat . sort .
+    map (showCommandHelp showExamples)
+  where
+    removeBlanks = unlines . filter (not . blank) . lines
+    blank l = null l || all isSpace l
+
+showCommandHelp :: Bool -> Command k v -> String
+showCommandHelp showExamples Command{..} = unlines $ case showExamples of
+    False -> blurb
+    True  -> blurb ++ examples
+  where
+    blurb :: [String]
+    blurb = concatMap b commandHelp
+    b :: (String, String) -> [String]
+    b (synopsis, explanation) = synopsis : [indent 4 (para [explanation])]
+    examples :: [String]
+    examples = "Examples:" : [indent 8 (unlines (map (S.unpack . fst) commandExamples))]
+
+
+------------------------------------------------------------
+-- Paragraph rendering
+--  
+    
+para :: [String] -> String
+para ss = concat $ intersperse "\n" (map (\s -> breakLines 76 s) ss)
+        
+indent :: Int -> String -> String 
+indent i s = unlines $ map (\x -> indentation ++ x) (lines s)
+    where
+        indentation = List.take i $ repeat ' '
+
+-- breakLines leftIndent columnWidth text
+breakLines :: Int -> String -> String
+breakLines n s
+    | length s < n = s ++ "\n"
+    | otherwise    = line' ++ "\n" ++ breakLines n rest'
+    where 
+        (line, rest) = splitAt n s
+        (rSpill, rLine) = break isSpace (reverse line)
+        line' = reverse rLine
+        rest' = reverse rSpill ++ rest
+
 
 ----------------------------------------------------------------------
 
 commands :: [Command S.ByteString Int]
-commands = [cmdGet, cmdSet, cmdSleep]
+commands = [cmdHelp, cmdGet, cmdSet, cmdSleep]
+
+cmdHelp :: Command S.ByteString Int
+cmdHelp = Command [("help", parser)]
+    []
+    []
+  where
+    parser = CmdHelp <$ skipSpace <*> ((Just <$> (takeWhile1 (not . isSpace))) <|> pure Nothing)
 
 cmdGet :: Command S.ByteString Int
 cmdGet = Command [("get", parser)]
-    []
-    []
+    [("get", "Request a value from the log")]
+    [("get x", CmdGet "x")]
   where
     parser = CmdGet <$ skipSpace <*> takeWhile1 (not . isSpace)
 
 cmdSet :: Command S.ByteString Int
 cmdSet = Command [("set", parser)]
-    []
-    []
+    [("set", "Request to set a value in the log")]
+    [("set x=7", CmdSet "x" 7)]
   where
     parser = CmdSet <$ skipSpace
                  <*> (takeWhile1 (\x -> not (isSpace x) && x /= '=')
