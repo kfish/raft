@@ -101,19 +101,25 @@ commands :: [Command S.ByteString Int]
 commands = [cmdGet, cmdSet, cmdSleep]
 
 cmdGet :: Command S.ByteString Int
-cmdGet = Command [("get", CmdGet <$ skipSpace1 <*> takeWhile1 (not . isSpace))]
+cmdGet = Command [("get", parser)]
     []
     []
+  where
+    parser = CmdGet <$ skipSpace1 <*> takeWhile1 (not . isSpace)
 
 cmdSet :: Command S.ByteString Int
-cmdSet = Command [("set", CmdSet <$ skipSpace1 <*> takeWhile1 (not . isSpace) <* skipSpace1 <*> decimal)]
+cmdSet = Command [("set", parser)]
     []
     []
+  where
+    parser = CmdSet <$ skipSpace1 <*> takeWhile1 (not . isSpace) <* skipSpace1 <*> decimal
 
 cmdSleep :: Command S.ByteString Int
-cmdSleep = Command [("sleep", CmdSleep <$ skipSpace1 <*> decimal)]
+cmdSleep = Command [("sleep", parser)]
     []
     []
+  where
+    parser = CmdSleep <$ skipSpace1 <*> decimal
 
 ----------------------------------------------------------------------
 
