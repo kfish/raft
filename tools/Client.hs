@@ -35,17 +35,6 @@ data Client k v = Client
   { leaderSocket :: Maybe Handle
   }
 
-{-
-data Cmd k v =
-    CmdSet k v
-  | CmdGet k
-  | CmdSleep Int
-  | CmdHelp (Maybe S.ByteString)
-  -- | CmdUse Host PortNumber
-  -- | CmdPause
-  -- | CmdDump
--}
-
 data Command k v = Command
     { commandParsers :: [(S.ByteString, Atto.Parser (Cmd k v))]
     , commandHelp :: [(String, String)]
