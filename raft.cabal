@@ -49,6 +49,7 @@ executable raft-client
   build-depends:
       base >= 4 && < 5
     , attoparsec
+    , binary
     , bytestring
     , containers >=0.5 && <0.6
     , filepath
