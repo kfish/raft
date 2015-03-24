@@ -54,11 +54,8 @@ emptyClient = Client Nothing
 main :: IO ()
 main = do
     args <- getArgs
-    -- h <- connectTo "localhost" (PortNumber 44444)
     Stream.bracketSocket (Endpoint "localhost" 44444) (shell commands)
-    -- shell commands emptyClient{leaderStream = Just h}
 
--- shell :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> Client k v -> IO ()
 shell :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> Socket -> IO ()
 shell commands0 socket = do
     S.putStrLn $ "type help for help"
@@ -112,7 +109,6 @@ execCommand commands0 cmd = case cmd of
     _ -> do
         stream <- getStream
         liftIO $ do
-            -- S.hPut h $ encode cmd
             Stream.runPut stream $ put cmd
             -- response <- hGetLine h
             -- putStrLn $ "Got response " ++ response
