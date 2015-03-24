@@ -45,6 +45,7 @@ executable raft-client
     , filepath
     , haskeline
     , mtl >= 2.0
+    , network
     , transformers >= 0.4
     , raft
 

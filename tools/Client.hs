@@ -6,9 +6,11 @@ module Main where
 import Control.Applicative
 import Control.Arrow (second)
 import Control.Monad (forever)
-import Control.Monad.Trans (lift, liftIO)
+import Control.Monad.Trans (lift, liftIO, MonadIO)
 import Control.Monad.Trans.State.Strict (StateT, evalStateT)
 import qualified Control.Monad.Trans.State.Strict as State
+
+import Control.Concurrent (threadDelay)
 
 import Data.Attoparsec.ByteString.Char8 as Atto hiding (isSpace)
 import qualified Data.ByteString.Char8 as S
@@ -20,13 +22,15 @@ import Data.List (intersperse, isPrefixOf, sort, sortBy)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 
+import Network
+
 import System.Console.Haskeline
 import System.Environment (getArgs, getEnvironment)
 import System.FilePath ((</>))
 import System.IO
 
 data Client k v = Client
-  { 
+  { leaderSocket :: Maybe Handle
   }
 
 data Cmd k v =
@@ -45,12 +49,13 @@ data Command k v = Command
     }
 
 emptyClient :: Client S.ByteString Int
-emptyClient = Client
+emptyClient = Client Nothing
 
 main :: IO ()
 main = do
     args <- getArgs
-    shell commands emptyClient
+    h <- connectTo "localhost" (PortNumber 44444)
+    shell commands emptyClient{leaderSocket = Just h}
 
 shell :: (Show k, Show v) => [Command k v] -> Client k v -> IO ()
 shell commands0 env0 = do
@@ -91,11 +96,25 @@ parseCommand commands0 = prefixChoice (concatMap commandParsers commands0)
     prefixChoice = choice . fmap both . sortBy (flip $ on compare fst)
     both (s, p) = try (string s *> p) -- try, in case p fails
 
+getSocket :: StateT (Client k v) IO Handle
+getSocket = do
+    env <- State.get
+    case leaderSocket env of
+        Just h -> return h
+        Nothing -> threadDelayMS 10 >> getSocket
+
 execCommand :: (Show k, Show v) => [Command k v] -> Cmd k v -> StateT (Client k v) IO ()
 execCommand commands0 cmd = case cmd of
     CmdSet k v -> liftIO . putStrLn $ "Set " ++ show k ++ " to " ++ show v
     CmdGet k -> liftIO . putStrLn $ "Get " ++ show k
-    CmdSleep n -> liftIO . putStrLn $ "Sleep for " ++ show n
+    CmdSleep n -> do
+        h <- getSocket
+        liftIO $ do
+            putStrLn $ "Sleep for " ++ show n
+            hPutStrLn h $ show n
+            response <- hGetLine h
+            putStrLn $ "Got response " ++ response
+        
     CmdHelp mCmd -> liftIO . putStrLn $ showMaybeCommandHelp commands0 mCmd
 
 showMaybeCommandHelp :: [Command k v] -> Maybe S.ByteString -> String
@@ -182,3 +201,7 @@ cmdSleep = Command [("sleep", parser)]
   where
     parser = CmdSleep <$ skipSpace <*> decimal
 
+----------------------------------------------------------------------
+
+threadDelayMS :: MonadIO m => Int -> m ()
+threadDelayMS = liftIO . threadDelay . (*1000)
