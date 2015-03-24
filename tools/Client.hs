@@ -110,6 +110,8 @@ execCommand commands0 cmd = case cmd of
         stream <- getStream
         liftIO $ do
             Stream.runPut stream $ put cmd
+            rsp <- Stream.runGet stream (get :: Get (ClientResponse S.ByteString Int))
+            putStrLn $ "Got response " ++ show rsp
             -- response <- hGetLine h
             -- putStrLn $ "Got response " ++ response
 

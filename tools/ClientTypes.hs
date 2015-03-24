@@ -1,5 +1,6 @@
 module ClientTypes (
     Cmd(..)
+  , ClientResponse(..)
 ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -16,7 +17,12 @@ data Cmd k v =
   -- | CmdPause
   -- | CmdDump
 
--- LEngth prefix
+data ClientResponse k v =
+    RspSetOK k v
+  | RspGetOK k v
+  | RspGetFail k
+  deriving (Show, Eq)
+
 instance (Serialize k, Serialize v) => Serialize (Cmd k v) where
     put (CmdSet k v) = do
         put 'S'
@@ -38,3 +44,22 @@ instance (Serialize k, Serialize v) => Serialize (Cmd k v) where
             'D' -> CmdSleep <$> get
             _ -> mzero
                 
+instance (Serialize k, Serialize v) => Serialize (ClientResponse k v) where
+    put (RspSetOK k v) = do
+        put 'S'
+        put k
+        put v
+    put (RspGetOK k v) = do
+        put 'G'
+        put k
+        put v
+    put (RspGetFail k) = do
+        put 'F'
+        put k
+
+    get = do
+        x <- get :: Get Char
+        case x of
+            'S' -> RspSetOK <$> get <*> get
+            'G' -> RspGetOK <$> get <*> get
+            'F' -> RspGetFail <$> get
