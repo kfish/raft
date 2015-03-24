@@ -16,7 +16,7 @@ module Consensus.Raft (
 ) where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Binary
+import Data.Serialize
 import Data.Map (Map)
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -99,7 +99,7 @@ data AppendEntries t a = AppendEntries
     , leaderCommit :: Consensus.Index
     }
 
-instance (Foldable t, Binary a, Binary (t a)) => Binary (AppendEntries t a) where
+instance (Foldable t, Serialize a, Serialize (t a)) => Serialize (AppendEntries t a) where
     put AppendEntries{..} = do
       put aeTerm
       put leaderId
@@ -118,7 +118,7 @@ data AppendEntriesResponse = AppendEntriesResponse
     , aerSuccess :: Bool
     }
 
-instance Binary AppendEntriesResponse where
+instance Serialize AppendEntriesResponse where
     put AppendEntriesResponse{..} = do
       put aerTerm
       put aerSuccess
@@ -139,7 +139,7 @@ data RequestVote = RequestVote
     , lastLogTerm :: Consensus.Term
     }
 
-instance Binary RequestVote where
+instance Serialize RequestVote where
     put RequestVote{..} = do
       put rvTerm
       put candidateId
@@ -156,7 +156,7 @@ data RequestVoteResponse = RequestVoteResponse
     , voteGranted :: Bool
     }
 
-instance Binary RequestVoteResponse where
+instance Serialize RequestVoteResponse where
     put RequestVoteResponse{..} = do
       put rvrTerm
       put voteGranted

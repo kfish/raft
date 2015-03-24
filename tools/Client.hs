@@ -15,6 +15,7 @@ import Control.Concurrent (threadDelay)
 import Data.Attoparsec.ByteString.Char8 as Atto hiding (isSpace)
 import qualified Data.ByteString.Char8 as S
 import Data.Char (isSpace)
+import Data.Serialize
 import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Functor.Identity (Identity)
@@ -24,6 +25,11 @@ import Data.Maybe (fromMaybe)
 
 import Network
 
+import Network.Socket (Socket)
+import Network.Stream as Stream
+import Network.Stream.Socket as Stream
+import Network.Stream.Types as Stream
+
 import System.Console.Haskeline
 import System.Environment (getArgs, getEnvironment)
 import System.FilePath ((</>))
@@ -32,7 +38,8 @@ import System.IO
 import ClientTypes
 
 data Client k v = Client
-  { leaderSocket :: Maybe Handle
+  { -- leaderSocket :: Maybe Handle
+    leaderStream :: Maybe Stream.Stream
   }
 
 data Command k v = Command
@@ -47,16 +54,19 @@ emptyClient = Client Nothing
 main :: IO ()
 main = do
     args <- getArgs
-    h <- connectTo "localhost" (PortNumber 44444)
-    shell commands emptyClient{leaderSocket = Just h}
+    -- h <- connectTo "localhost" (PortNumber 44444)
+    Stream.bracketSocket (Endpoint "localhost" 44444) (shell commands)
+    -- shell commands emptyClient{leaderStream = Just h}
 
-shell :: (Show k, Show v) => [Command k v] -> Client k v -> IO ()
-shell commands0 env0 = do
+-- shell :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> Client k v -> IO ()
+shell :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> Socket -> IO ()
+shell commands0 socket = do
     S.putStrLn $ "type help for help"
+    stream <- mkSocketStream socket
     home <- fromMaybe "." . lookup "HOME" <$> getEnvironment
     let settings = setComplete (completeWordWithPrev Nothing " \t" (clientComplete commands0))
             defaultSettings { historyFile = Just $ home </> ".raft_history" }
-    runInputT settings loop `evalStateT` env0
+    runInputT settings loop `evalStateT` emptyClient { leaderStream = Just stream }
   where
     comment = fst . break ('#' ==)
     chomp = fst . S.spanEnd isSpace . snd . S.span isSpace . S.pack
@@ -89,15 +99,25 @@ parseCommand commands0 = prefixChoice (concatMap commandParsers commands0)
     prefixChoice = choice . fmap both . sortBy (flip $ on compare fst)
     both (s, p) = try (string s *> p) -- try, in case p fails
 
-getSocket :: StateT (Client k v) IO Handle
-getSocket = do
+getStream :: StateT (Client k v) IO Stream.Stream
+getStream = do
     env <- State.get
-    case leaderSocket env of
-        Just h -> return h
-        Nothing -> threadDelayMS 10 >> getSocket
+    case leaderStream env of
+        Just s -> return s
+        Nothing -> threadDelayMS 10 >> getStream
 
-execCommand :: (Show k, Show v) => [Command k v] -> Cmd k v -> StateT (Client k v) IO ()
+execCommand :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> Cmd k v -> StateT (Client k v) IO ()
 execCommand commands0 cmd = case cmd of
+    CmdHelp mCmd -> liftIO . putStrLn $ showMaybeCommandHelp commands0 mCmd
+    _ -> do
+        stream <- getStream
+        liftIO $ do
+            -- S.hPut h $ encode cmd
+            Stream.runPut stream $ put cmd
+            -- response <- hGetLine h
+            -- putStrLn $ "Got response " ++ response
+
+{-
     CmdSet k v -> liftIO . putStrLn $ "Set " ++ show k ++ " to " ++ show v
     CmdGet k -> liftIO . putStrLn $ "Get " ++ show k
     CmdSleep n -> do
@@ -107,8 +127,8 @@ execCommand commands0 cmd = case cmd of
             hPutStrLn h $ show n
             response <- hGetLine h
             putStrLn $ "Got response " ++ response
+-}
         
-    CmdHelp mCmd -> liftIO . putStrLn $ showMaybeCommandHelp commands0 mCmd
 
 showMaybeCommandHelp :: [Command k v] -> Maybe S.ByteString -> String
 showMaybeCommandHelp commands0 = maybe (showCommandsHelp False commands0) $ \cmd ->

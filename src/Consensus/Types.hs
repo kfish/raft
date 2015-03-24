@@ -10,7 +10,7 @@ module Consensus.Types (
 ) where
 
 import Control.Applicative ((<$>))
-import Data.Binary
+import Data.Serialize
 import Data.Foldable (Foldable)
 
 ----------------------------------------------------------------------
@@ -25,7 +25,7 @@ type Index = Int
 newtype Term = Term Int
     deriving (Show, Eq, Ord)
 
-instance Binary Term where
+instance Serialize Term where
     put (Term x) = put x
     get = Term <$> get
 
