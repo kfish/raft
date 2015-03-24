@@ -29,10 +29,13 @@ import System.Environment (getArgs, getEnvironment)
 import System.FilePath ((</>))
 import System.IO
 
+import ClientTypes
+
 data Client k v = Client
   { leaderSocket :: Maybe Handle
   }
 
+{-
 data Cmd k v =
     CmdSet k v
   | CmdGet k
@@ -41,6 +44,7 @@ data Cmd k v =
   -- | CmdUse Host PortNumber
   -- | CmdPause
   -- | CmdDump
+-}
 
 data Command k v = Command
     { commandParsers :: [(S.ByteString, Atto.Parser (Cmd k v))]
