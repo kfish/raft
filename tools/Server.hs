@@ -24,18 +24,26 @@ import ClientTypes
 serve :: S.Socket -> IO ()
 serve h = do
     stream <- mkSocketStream h
-    loop stream where
+    loop stream
+  where
     loop stream = do
       cmd <- Stream.runGet stream getCmd
       case cmd of
-          CmdSet k v -> liftIO . putStrLn $ "Set " ++ show k ++ " to " ++ show v
-          CmdGet k -> liftIO . putStrLn $ "Get " ++ show k
+          CmdSet k v -> do
+              liftIO . putStrLn $ "Set " ++ show k ++ " to " ++ show v
+              Stream.runPut stream $ put (RspSetOK k v)
+          CmdGet k -> do
+              liftIO . putStrLn $ "Get " ++ show k
+              Stream.runPut stream $ put (mkRspGetOK k 7)
           CmdSleep n -> do
               liftIO . putStrLn $ "Sleep " ++ show n
       loop stream
 
     getCmd :: Get (Cmd BS.ByteString Int)
     getCmd = get
+
+    mkRspGetOK :: BS.ByteString -> Int -> ClientResponse BS.ByteString Int
+    mkRspGetOK k v = RspGetOK k v
 
 main :: IO ()
 main = do
