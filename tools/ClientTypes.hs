@@ -4,7 +4,7 @@ module ClientTypes (
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
-import Data.Binary
+import Data.Serialize
 import qualified Data.ByteString.Char8 as S
 
 data Cmd k v =
@@ -16,7 +16,8 @@ data Cmd k v =
   -- | CmdPause
   -- | CmdDump
 
-instance (Binary k, Binary v) => Binary (Cmd k v) where
+-- LEngth prefix
+instance (Serialize k, Serialize v) => Serialize (Cmd k v) where
     put (CmdSet k v) = do
         put 'S'
         put k
