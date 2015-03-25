@@ -24,6 +24,7 @@ library
     Consensus.Types
     Consensus.Raft
     Network.Protocol
+    Network.Protocol.Server
     Network.Stream
     Network.Stream.Socket
     Network.Stream.Types

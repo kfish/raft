@@ -8,9 +8,12 @@ import qualified Consensus.Types as Consensus
 
 data Dummy = Dummy Int
 
+data DummyRequest = QueryDummy | SetDummy Int
+data DummyResponse = DummyIs Int
+
 instance Protocol Dummy where
-    data Request Dummy = QueryDummy | SetDummy Int
-    data Response Dummy = DummyIs Int
+    type Request Dummy = DummyRequest
+    type Response Dummy = DummyResponse
 
     step (Dummy n) (QueryDummy) = (Dummy n, Just $ DummyIs n)
     step (Dummy _) (SetDummy n) = (Dummy n, Just $ DummyIs n)

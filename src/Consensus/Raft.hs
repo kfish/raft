@@ -166,12 +166,16 @@ instance Serialize RequestVoteResponse where
 
 ----------------------------------------------------------------------
 
-instance (Foldable t) => Protocol (Raft (t a)) where
-    data Request (Raft (t a)) = AE (AppendEntries t a)
-                              | RV RequestVote
+data RaftRequest t a = AE (AppendEntries t a)
+                     | RV RequestVote
 
-    data Response (Raft (t a)) = AER AppendEntriesResponse
-                               | RVR RequestVoteResponse
+data RaftResponse = AER AppendEntriesResponse
+                  | RVR RequestVoteResponse
+
+instance (Foldable t) => Protocol (Raft (t a)) where
+    type Request (Raft (t a)) = RaftRequest t a
+
+    type Response (Raft (t a)) = RaftResponse
 
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
