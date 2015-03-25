@@ -19,25 +19,34 @@ import Network.Stream.Socket as Stream
 import Network.Stream.Types as Stream
 import ClientTypes
 
+import Consensus.Types
+import qualified TestStore as TS
+
 ----------------------------------------------------------------------
 
-serve :: S.Socket -> IO ()
-serve h = do
+serve :: S.Socket -> TS.TestStore -> IO ()
+serve h store0 = do
     stream <- mkSocketStream h
-    loop stream
+    loop stream store0
   where
-    loop stream = do
+    loop stream s = do
       cmd <- Stream.runGet stream getCmd
-      case cmd of
+      loop stream =<< case cmd of
           CmdSet k v -> do
               liftIO . putStrLn $ "Set " ++ show k ++ " to " ++ show v
+              let s' = TS.testStore 0 [v] (Term 0) s
               Stream.runPut stream $ put (RspSetOK k v)
+              return s'
           CmdGet k -> do
               liftIO . putStrLn $ "Get " ++ show k
-              Stream.runPut stream $ put (mkRspGetOK k 7)
+              Stream.runPut stream . put $
+                  case TS.testQuery 0 s of
+                      Just (v, _) -> mkRspGetOK k v
+                      Nothing -> RspGetFail k
+              return s
           CmdSleep n -> do
               liftIO . putStrLn $ "Sleep " ++ show n
-      loop stream
+              return s
 
     getCmd :: Get (Cmd BS.ByteString Int)
     getCmd = get
@@ -48,7 +57,8 @@ serve h = do
 main :: IO ()
 main = do
   s <- listenOn (PortNumber 44444)
+  let store = TS.empty
   forever $ do
     (h, addr) <- S.accept s
-    forkIO (serve h `finally` S.sClose h)
+    forkIO (serve h store `finally` S.sClose h)
 
