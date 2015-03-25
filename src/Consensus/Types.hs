@@ -35,6 +35,7 @@ class HasTerm a where
 
 ----------------------------------------------------------------------
 
+{-
 class Node a where 
 
     identify :: a -> Identifier
@@ -42,6 +43,7 @@ class Node a where
     receive :: Monad m => a -> m (a, Request b)
 
     send :: Monad m => Response b -> a -> m a
+    -}
 
 class Store s where
 

@@ -6,8 +6,8 @@ module Network.Protocol (
 
 class Protocol p where
 
-    data Request p :: *
+    type Request p :: *
 
-    data Response p :: *
+    type Response p :: *
 
     step :: p -> Request p -> (p, Maybe (Response p))
