@@ -21,6 +21,8 @@ import Data.Map (Map)
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 
+import Network.Protocol
+
 import qualified Consensus.Types as Consensus
 
 ----------------------------------------------------------------------
@@ -164,7 +166,7 @@ instance Serialize RequestVoteResponse where
 
 ----------------------------------------------------------------------
 
-instance (Foldable t) => Consensus.Protocol (Raft (t a)) where
+instance (Foldable t) => Protocol (Raft (t a)) where
     data Request (Raft (t a)) = AE (AppendEntries t a)
                               | RV RequestVote
 

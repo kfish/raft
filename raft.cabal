@@ -23,6 +23,7 @@ library
   exposed-modules:
     Consensus.Types
     Consensus.Raft
+    Network.Protocol
     Network.Stream
     Network.Stream.Socket
     Network.Stream.Types
