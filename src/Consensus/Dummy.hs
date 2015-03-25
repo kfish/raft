@@ -12,6 +12,6 @@ instance Protocol Dummy where
     data Request Dummy = QueryDummy | SetDummy Int
     data Response Dummy = DummyIs Int
 
-    step (Dummy n) (QueryDummy) = (Dummy n, DummyIs n)
-    step (Dummy _) (SetDummy n) = (Dummy n, DummyIs n)
+    step (Dummy n) (QueryDummy) = (Dummy n, Just $ DummyIs n)
+    step (Dummy _) (SetDummy n) = (Dummy n, Just $ DummyIs n)
 

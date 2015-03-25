@@ -10,4 +10,4 @@ class Protocol p where
 
     data Response p :: *
 
-    step :: p -> Request p -> (p, Response p)
+    step :: p -> Request p -> (p, Maybe (Response p))
