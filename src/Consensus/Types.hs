@@ -6,12 +6,13 @@ module Consensus.Types (
     , Term(..)
 
     , Store(..)
-    , Protocol(..)
 ) where
 
 import Control.Applicative ((<$>))
 import Data.Serialize
 import Data.Foldable (Foldable)
+
+import Network.Protocol
 
 ----------------------------------------------------------------------
 
@@ -59,10 +60,3 @@ class Store s where
     truncate :: Monad m => Index -> s -> m s
 
 
-class Protocol p where
-
-    data Request p :: *
-
-    data Response p :: *
-
-    step :: p -> Request p -> (p, Response p)
