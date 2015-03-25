@@ -175,7 +175,7 @@ instance (Foldable t) => Protocol (Raft (t a)) where
 
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
-        | aeTerm < term = (receiver, AER$ AppendEntriesResponse term False)
+        | aeTerm < term = (receiver, Just . AER$ AppendEntriesResponse term False)
 
         | otherwise =
 
@@ -202,7 +202,7 @@ instance (Foldable t) => Protocol (Raft (t a)) where
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
         -}
 
-                 (receiver, AER$ AppendEntriesResponse aeTerm True)
+                 (receiver, Just . AER$ AppendEntriesResponse aeTerm True)
       where
         term = currentTerm (pstate receiver)
 
@@ -213,13 +213,13 @@ instance (Foldable t) => Protocol (Raft (t a)) where
     step receiver@(RaftFollower p@RaftPersistentState{..} vol) (RV RequestVote{..})
         -- Reply False if term < currentTerm
         | rvTerm < currentTerm
-          = (receiver, RVR$ RequestVoteResponse currentTerm False)
+          = (receiver, Just. RVR$ RequestVoteResponse currentTerm False)
 
         -- If votedFor is null or candidateId, and candidate's log is at
         -- least as up-to-date as receiver's log, grant vote
         | (votedFor == Nothing || votedFor == Just candidateId)
           && lastLogTerm <= currentTerm
-          = (RaftFollower granted vol, RVR$ RequestVoteResponse rvTerm True)
+          = (RaftFollower granted vol, Just . RVR$ RequestVoteResponse rvTerm True)
       where
         granted = p { votedFor = Just candidateId }
 
@@ -228,4 +228,4 @@ instance (Foldable t) => Protocol (Raft (t a)) where
     -- ??? If a server that is not a Follower receives a RequestVote, return False
     -- ??? what term to return? update volatile term?
     step receiver (RV _)
-      = (receiver, RVR$ RequestVoteResponse (currentTerm (pstate receiver)) False)
+      = (receiver, Just . RVR$ RequestVoteResponse (currentTerm (pstate receiver)) False)

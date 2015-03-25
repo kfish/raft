@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Main where
 
@@ -19,8 +20,37 @@ import Network.Stream.Socket as Stream
 import Network.Stream.Types as Stream
 import ClientTypes
 
+import Network.Protocol
+
 import Consensus.Types
 import qualified TestStore as TS
+
+----------------------------------------------------------------------
+
+{-
+data TestProtocol = TestProtocol
+    { ts :: TS.TestStore
+    }
+
+instance Protocol TestProtocol where
+
+    data Request TestProtocol = Cmd BS.ByteString Int
+    data Response TestProtocol = ClientResponse BS.ByteString Int
+
+    -- step :: TestProtocol -> Cmd BS.ByteString Int
+    --      -> (TestProtocol, ClientResponse BS.ByteString Int)
+    step tp cmd = case cmd of
+          CmdSet k v ->
+              let s' = TS.testStore 0 [v] (Term 0) (ts tp) in
+              (s', RspSetOK k v)
+          CmdGet k -> let rsp = case TS.testQuery 0 (ts tp) of
+                        Just (v, _) -> mkRspGetOK k v
+                        Nothing -> RspGetFail k
+              in (s, rsp)
+          CmdSleep n -> (s, Nothing, 
+              -- liftIO . putStrLn $ "Sleep " ++ show n
+              return s
+              -}
 
 ----------------------------------------------------------------------
 
