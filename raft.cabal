@@ -39,6 +39,7 @@ library
     , bytestring
     , containers >=0.5 && <0.6
     , exceptions           >= 0.6
+    , free
     , mtl >= 2.0
     , network
     , text
