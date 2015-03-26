@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Consensus.Types (
@@ -9,6 +10,7 @@ module Consensus.Types (
 ) where
 
 import Control.Applicative ((<$>))
+import Control.Monad.Free
 import Data.Serialize
 import Data.Foldable (Foldable)
 
@@ -62,3 +64,18 @@ class Store s where
     truncate :: Monad m => Index -> s -> m s
 
 
+data StoreF k v next
+    = Query k (v -> next)
+    | Store k v next
+    | End
+
+instance Functor (StoreF k v) where
+    fmap f (Query k cont)   = Query k (f . cont)
+    fmap f (Store k v next) = Store k v (f next)
+    fmap f End              = End
+
+query' :: MonadFree (StoreF k v) m => k -> m v
+query' k = liftF (Query k id)
+
+store' :: MonadFree (StoreF k v) m => k -> v -> m ()
+store' k v = liftF (Store k v ())
