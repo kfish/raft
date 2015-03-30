@@ -68,11 +68,14 @@ data LogStoreF entry next
     = LogQuery Index ((entry, Term) -> next)
     | LogStore Index Term entry next
     | LogCommit Index next
+    | LogTruncate Index next
     | LogEnd
 
 instance Functor (LogStoreF entry) where
     fmap f (LogQuery ix cont)            = LogQuery ix (f . cont)
     fmap f (LogStore ix term entry next) = LogStore ix term entry (f next)
+    fmap f (LogCommit ix next)           = LogCommit ix (f next)
+    fmap f (LogTruncate ix next)         = LogTruncate ix (f next)
     fmap f LogEnd                        = LogEnd
 
 query' :: MonadFree (LogStoreF entry) m => Index -> m (entry, Term)
@@ -80,3 +83,9 @@ query' ix = liftF (LogQuery ix id)
 
 store' :: MonadFree (LogStoreF entry) m => Index -> Term -> entry -> m ()
 store' ix term entry = liftF (LogStore ix term entry ())
+
+commit' :: MonadFree (LogStoreF entry) m => Index -> m ()
+commit' ix = liftF (LogCommit ix ())
+
+truncate' :: MonadFree (LogStoreF entry) m => Index -> m ()
+truncate' ix = liftF (LogTruncate ix ())
