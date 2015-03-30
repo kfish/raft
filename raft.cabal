@@ -55,6 +55,7 @@ executable test-server
     , cereal
     , containers >=0.5 && <0.6
     , bytestring
+    , free
     , mtl >= 2.0
     , network
     , transformers >= 0.4
@@ -89,6 +90,8 @@ test-suite test
   build-depends:
       base >= 4 && < 5
     , containers >=0.5 && <0.6
+    , free
+    , mtl >= 2.0
     , transformers >= 0.4
     , tasty >= 0.7
     , tasty-hunit

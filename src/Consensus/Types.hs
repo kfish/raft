@@ -7,6 +7,8 @@ module Consensus.Types (
     , Term(..)
 
     , Store(..)
+
+    , LogStoreF(..)
 ) where
 
 import Control.Applicative ((<$>))
@@ -64,28 +66,28 @@ class Store s where
     truncate :: Monad m => Index -> s -> m s
 
 
-data LogStoreF entry next
-    = LogQuery Index ((entry, Term) -> next)
-    | LogStore Index Term entry next
+data LogStoreF t entry next
+    = LogQuery Index (Maybe (entry, Term) -> next)
+    | LogStore Index Term (t entry) next
     | LogCommit Index next
     | LogTruncate Index next
     | LogEnd
 
-instance Functor (LogStoreF entry) where
-    fmap f (LogQuery ix cont)            = LogQuery ix (f . cont)
-    fmap f (LogStore ix term entry next) = LogStore ix term entry (f next)
-    fmap f (LogCommit ix next)           = LogCommit ix (f next)
-    fmap f (LogTruncate ix next)         = LogTruncate ix (f next)
-    fmap f LogEnd                        = LogEnd
+instance Functor (LogStoreF t entry) where
+    fmap f (LogQuery ix cont)              = LogQuery ix (f . cont)
+    fmap f (LogStore ix term entries next) = LogStore ix term entries (f next)
+    fmap f (LogCommit ix next)             = LogCommit ix (f next)
+    fmap f (LogTruncate ix next)           = LogTruncate ix (f next)
+    fmap f LogEnd                          = LogEnd
 
-query' :: MonadFree (LogStoreF entry) m => Index -> m (entry, Term)
+query' :: MonadFree (LogStoreF t entry) m => Index -> m (Maybe (entry, Term))
 query' ix = liftF (LogQuery ix id)
 
-store' :: MonadFree (LogStoreF entry) m => Index -> Term -> entry -> m ()
-store' ix term entry = liftF (LogStore ix term entry ())
+store' :: MonadFree (LogStoreF t entry) m => Index -> Term -> t entry -> m ()
+store' ix term entries = liftF (LogStore ix term entries ())
 
-commit' :: MonadFree (LogStoreF entry) m => Index -> m ()
+commit' :: MonadFree (LogStoreF t entry) m => Index -> m ()
 commit' ix = liftF (LogCommit ix ())
 
-truncate' :: MonadFree (LogStoreF entry) m => Index -> m ()
+truncate' :: MonadFree (LogStoreF t entry) m => Index -> m ()
 truncate' ix = liftF (LogTruncate ix ())
