@@ -65,17 +65,18 @@ class Store s where
 
 
 data LogStoreF term entry next
-    = LogQuery term (entry -> next)
-    | LogStore term entry next
+    = LogQuery Index ((entry, term) -> next)
+    | LogStore Index entry term next
+    | LogCommit Index next
     | LogEnd
 
 instance Functor (LogStoreF term entry) where
-    fmap f (LogQuery term cont)       = LogQuery term (f . cont)
-    fmap f (LogStore term entry next) = LogStore term entry (f next)
-    fmap f LogEnd                     = LogEnd
+    fmap f (LogQuery ix cont)            = LogQuery ix (f . cont)
+    fmap f (LogStore ix entry term next) = LogStore ix entry term (f next)
+    fmap f LogEnd                        = LogEnd
 
-query' :: MonadFree (LogStoreF term entry) m => term -> m entry
-query' term = liftF (LogQuery term id)
+query' :: MonadFree (LogStoreF term entry) m => Index -> m (entry, term)
+query' ix = liftF (LogQuery ix id)
 
-store' :: MonadFree (LogStoreF term entry) m => term -> entry -> m ()
-store' term entry = liftF (LogStore term entry ())
+store' :: MonadFree (LogStoreF term entry) m => Index -> entry -> term -> m ()
+store' ix entry term = liftF (LogStore ix entry term ())
