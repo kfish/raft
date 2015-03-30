@@ -64,12 +64,14 @@ testTruncate ix ts = runIdentity $ CS.truncate ix ts
 
 ----------------------------------------------------------------------
 
-testState x = runState $ do
-    put empty
-    runTestStore x
+testState :: Free (CS.LogStoreF [] Int) a -> CS.Index -> Maybe (Int, CS.Term)
+testState f ix = flip evalState empty $ do
+    runTestStore (f >> CS.end')
+    TestStore s _c <- get
+    return $ Map.lookup ix s
 
--- runTestStore :: (MonadState TestStore m, Fold.Foldable t)
---              => Free (CS.LogStoreF t Int) () -> m ()
+runTestStore :: (MonadState TestStore m, Fold.Foldable t)
+             => Free (CS.LogStoreF t Int) () -> m ()
 runTestStore (Pure r) = return r
 runTestStore (Free x) = case x of
     CS.LogQuery ix cont -> do
@@ -85,3 +87,4 @@ runTestStore (Free x) = case x of
     CS.LogTruncate ix next -> do
         modify $ \(TestStore s c) ->
             TestStore (fst (Map.split ix s)) (min ix c)
+    CS.LogEnd -> return ()

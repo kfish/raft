@@ -13,6 +13,7 @@ module Consensus.Types (
     , store'
     , commit'
     , truncate'
+    , end'
 ) where
 
 import Control.Applicative ((<$>))
@@ -95,3 +96,6 @@ commit' ix = liftF (LogCommit ix ())
 
 truncate' :: MonadFree (LogStoreF t entry) m => Index -> m ()
 truncate' ix = liftF (LogTruncate ix ())
+
+end' :: MonadFree (LogStoreF t entry) m => m ()
+end' = liftF LogEnd

@@ -32,6 +32,6 @@ unitTests = testGroup "Unit tests"
         @?= Nothing
 
   , testCase "run1" $
-      testState (query' 0)
+      testState (query' 0) 0
         @?= Nothing
   ]
