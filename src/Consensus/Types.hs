@@ -9,6 +9,10 @@ module Consensus.Types (
     , Store(..)
 
     , LogStoreF(..)
+    , query'
+    , store'
+    , commit'
+    , truncate'
 ) where
 
 import Control.Applicative ((<$>))

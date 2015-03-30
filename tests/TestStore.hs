@@ -9,6 +9,9 @@ module TestStore (
   , testStore
   , testCommit
   , testTruncate
+
+  , testState
+  , runTestStore
 ) where
 
 import Data.Functor.Identity
@@ -61,8 +64,12 @@ testTruncate ix ts = runIdentity $ CS.truncate ix ts
 
 ----------------------------------------------------------------------
 
-runTestStore :: (MonadState TestStore m, Fold.Foldable t)
-             => Free (CS.LogStoreF t Int) () -> m ()
+testState x = runState $ do
+    put empty
+    runTestStore x
+
+-- runTestStore :: (MonadState TestStore m, Fold.Foldable t)
+--              => Free (CS.LogStoreF t Int) () -> m ()
 runTestStore (Pure r) = return r
 runTestStore (Free x) = case x of
     CS.LogQuery ix cont -> do
