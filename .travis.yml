@@ -1,5 +1,6 @@
 language: haskell
 
 install:
+  - cabal install tasty-hunit
   - cabal install --enable-tests
 
