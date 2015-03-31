@@ -1,0 +1,5 @@
+language: haskell
+
+install:
+  - cabal install --enable-tests
+
