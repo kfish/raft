@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -15,16 +16,41 @@ module SqliteStore (
 import Data.Functor.Identity
 
 import Control.Applicative ((<$>))
+import Control.Monad (unless)
 
 import qualified Data.Foldable as Fold
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (listToMaybe)
+import qualified Data.Text as T
 
 import qualified Database.SQLite.Simple as Sqlite
 
 import qualified Consensus.Raft as CS
 import qualified Consensus.Types as CS
+
+----------------------------------------------------------------------
+
+tableExists :: Sqlite.Connection -> String -> IO Bool
+tableExists conn tblName = do
+    r <- Sqlite.query conn
+         "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+         (Sqlite.Only tblName)
+    case r of
+        [Sqlite.Only (_ :: String)] -> return True
+        _ -> return False
+
+createTables :: Sqlite.Connection -> IO ()
+createTables conn = do
+    schemaCreated <- tableExists conn "kv"
+    unless schemaCreated $ Sqlite.execute_ conn
+        (Sqlite.Query $ T.concat
+            [ "CREATE TABLE kv ("
+            , "key INTEGER PRIMARY KEY, "
+            , "value INTEGER"
+            , ")"
+            ]
+        )
 
 ----------------------------------------------------------------------
 
