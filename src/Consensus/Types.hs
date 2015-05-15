@@ -6,7 +6,7 @@ module Consensus.Types (
     , Index
     , Term(..)
 
-    , Store(..)
+    -- , Store(..)
 
     , LogStoreF(..)
     , query'
@@ -54,6 +54,7 @@ class Node a where
     send :: Monad m => Response b -> a -> m a
     -}
 
+{-
 class Store s where
 
     type Value s :: *
@@ -69,6 +70,7 @@ class Store s where
 
     -- | Delete a given entry and all that follow it
     truncate :: Monad m => Index -> s -> m s
+-}
 
 
 data LogStoreF t entry next
