@@ -69,6 +69,7 @@ ensureConnection ss@SqliteStore{..}
   | otherwise = return ss
   -}
 
+{-
 instance CS.Store SqliteStore where
     type Value SqliteStore = Int
 
@@ -89,6 +90,7 @@ instance CS.Store SqliteStore where
 
     truncate ix (SqliteStore conn s c) = return $ SqliteStore conn
         (fst (Map.split ix s)) (min ix c)
+-}
 
 empty :: SqliteStore
 empty = SqliteStore undefined Map.empty 0
