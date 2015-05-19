@@ -29,9 +29,6 @@ library
     Network.Stream.Socket
     Network.Stream.Types
 
-  other-modules:
-    Consensus.Dummy
-
   build-depends:
       base >=4.7 && <4.8
     , attoparsec
