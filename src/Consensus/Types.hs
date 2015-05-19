@@ -106,6 +106,7 @@ end' = liftF LogEnd
 class Store s where
     type Value s :: *
 
-    runLogStore :: (Fold.Foldable t)
-                => Free (LogStoreF t (Value s)) () -> s -> s
+    -- runLogStore :: (Fold.Foldable t)
+    --             => Free (LogStoreF t (Value s)) () -> s -> s
+    runLogStore :: Free (LogStoreF [] (Value s)) () -> s -> s
     valueAt :: Index -> s -> Maybe (Value s, Term)
