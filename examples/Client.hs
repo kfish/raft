@@ -49,7 +49,7 @@ data Command k v = Command
     }
 
 type ClientKey = Int
-type ClientValue = Int -- S.ByteString
+type ClientValue = Int
 
 emptyClient :: Client ClientKey ClientValue
 emptyClient = Client Nothing
@@ -112,7 +112,6 @@ execCommand commands0 cmd = case cmd of
     _ -> do
         stream <- getStream
         liftIO $ do
-            putStrLn $ "Sending: " ++ show cmd
             Stream.runPut stream $ put cmd
             rsp <- Stream.runGet stream (get :: Get (ClientResponse ClientKey ClientValue))
             putStrLn $ "Got response " ++ show rsp
@@ -197,12 +196,11 @@ cmdGet = Command [("get", parser)]
     [("get", "Request a value from the log")]
     [("get 7", CmdGet 7)]
   where
-    parser = CmdGet <$ skipSpace <*> decimal -- takeWhile1 (not . isSpace)
+    parser = CmdGet <$ skipSpace <*> decimal
 
 cmdSet :: Command ClientKey ClientValue
 cmdSet = Command [("set", parser)]
     [("set", "Request to set a value in the log")]
-    -- [("set x=foo", CmdSet "x" "foo")]
     [("set 7=7", CmdSet 7 7)]
   where
     parser = CmdSet <$ skipSpace

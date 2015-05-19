@@ -8,8 +8,6 @@ import Control.Monad (mzero)
 import Data.Serialize
 import qualified Data.ByteString.Char8 as S
 
-import Debug.Trace (trace)
-
 data ClientCommand k v =
     CmdSet k v
   | CmdGet k
@@ -42,10 +40,10 @@ instance (Serialize k, Serialize v) => Serialize (ClientCommand k v) where
     get = do
         x <- get :: Get Char
         case x of
-            'S' -> trace "GOT S " (CmdSet <$> get <*> get)
-            'G' -> trace "GOT G " (CmdGet <$> get)
+            'S' -> CmdSet <$> get <*> get
+            'G' -> CmdGet <$> get
             'D' -> CmdSleep <$> get
-            _ -> trace ("GOT OMG " ++ [x] ) mzero
+            _ -> mzero
                 
 instance (Serialize k, Serialize v) => Serialize (ClientResponse k v) where
     put (RspSetOK k v) = do
@@ -66,7 +64,3 @@ instance (Serialize k, Serialize v) => Serialize (ClientResponse k v) where
             'S' -> RspSetOK <$> get <*> get
             'G' -> RspGetOK <$> get <*> get
             'F' -> RspGetFail <$> get
-
-gC :: Get Char
-gC = get
-
