@@ -6,17 +6,16 @@
 
 module SqliteStore (
     SqliteStore(..)
-  , empty
-  , sqliteQuery
-  , sqliteStore
-  , sqliteCommit
-  , sqliteTruncate
+  , open
 ) where
 
 import Data.Functor.Identity
 
 import Control.Applicative ((<$>))
+import Control.Arrow (second)
 import Control.Monad (unless)
+import Control.Monad.Free
+import Control.Monad.State
 
 import qualified Data.Foldable as Fold
 import Data.Map (Map)
@@ -45,9 +44,10 @@ createTables conn = do
     schemaCreated <- tableExists conn "kv"
     unless schemaCreated $ Sqlite.execute_ conn
         (Sqlite.Query $ T.concat
-            [ "CREATE TABLE kv ("
-            , "key INTEGER PRIMARY KEY, "
+            [ "CREATE TABLE store ("
+            , "ix    INTEGER PRIMARY KEY, "
             , "value INTEGER"
+            , "term  INTEGER"
             , ")"
             ]
         )
@@ -56,9 +56,45 @@ createTables conn = do
 
 data SqliteStore = SqliteStore {
       ssConnection :: Sqlite.Connection
-    , tsInternal :: Map CS.Index (Int, CS.Term)
-    , tsLasqliteCommit :: CS.Index
+    , tsLatestCommit :: CS.Index
     }
+
+open :: IO SqliteStore
+open = do
+      conn <- Sqlite.open "test.db"
+      createTables conn
+      return (SqliteStore conn 0)
+
+runSqliteStore :: (m ~ StateT SqliteStore IO, Fold.Foldable t)
+               => Free (CS.LogStoreF t Int) () -> m ()
+runSqliteStore (Pure r) = return r
+runSqliteStore (Free x) = case x of
+    CS.LogQuery ix cont -> do
+        SqliteStore conn c <- get
+        res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
+        runSqliteStore $ cont (second CS.Term <$> listToMaybe res)
+    CS.LogStore ix (CS.Term term) xs next -> do
+        SqliteStore conn c <- get
+        liftIO $ mapM_ (\(ixx, x) ->
+                           Sqlite.execute conn "insert into store (ix,value,term) values (?)" [ixx, x, term])
+                       (zip [ix..] (Fold.toList xs))
+        runSqliteStore next
+    CS.LogCommit ix next -> do
+        modify $ \ss -> ss { tsLatestCommit = ix }
+        runSqliteStore next
+    CS.LogTruncate ix next -> do
+        SqliteStore conn c <- get
+        liftIO $ Sqlite.execute conn "delete from store where ix > (?)" [min ix c]
+        runSqliteStore next
+    CS.LogEnd -> return ()
+
+{-
+instance CS.Store SqliteStore where
+    type Value SqliteStore = Int
+    runLogStore cmds = execStateT (runSqliteStore cmds)
+    valueAt ix ts = Map.lookup ix (tsInternal ts)
+-}
+
 
 {-
 ensureConnection :: SqliteStore -> IO SqliteStore
@@ -90,7 +126,6 @@ instance CS.Store SqliteStore where
 
     truncate ix (SqliteStore conn s c) = return $ SqliteStore conn
         (fst (Map.split ix s)) (min ix c)
--}
 
 empty :: SqliteStore
 empty = SqliteStore undefined Map.empty 0
@@ -107,3 +142,4 @@ sqliteCommit ix ts = runIdentity $ CS.commit ix ts
 sqliteTruncate :: CS.Index -> SqliteStore -> SqliteStore
 sqliteTruncate ix ts = runIdentity $ CS.truncate ix ts
 
+-}

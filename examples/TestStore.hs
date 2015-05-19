@@ -44,12 +44,14 @@ runTestStore (Free x) = case x of
     CS.LogStore ix term xs next -> do
         modify $ \(TestStore s c) ->
             (\m -> TestStore m c) . fst $ Fold.foldl' (\(m, ixx) x -> (Map.insert ixx (x,term) m, ixx+1)) (s, ix) xs
+        runTestStore next
     CS.LogCommit ix next -> do
         modify $ \ts -> ts { tsLatestCommit = ix }
         runTestStore next
     CS.LogTruncate ix next -> do
         modify $ \(TestStore s c) ->
             TestStore (fst (Map.split ix s)) (min ix c)
+        runTestStore next
     CS.LogEnd -> return ()
 
 instance CS.Store TestStore where
