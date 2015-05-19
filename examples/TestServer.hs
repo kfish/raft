@@ -39,7 +39,7 @@ instance Protocol TestProtocol where
     -- Look, really you want a test protocol that just stores strings against indexes.
     -- First step: parse/send the key as an Index (ie. int) not a string key
 
-    type Request TestProtocol = Cmd Index Int
+    type Request TestProtocol = ClientCommand Index Int
     type Response TestProtocol = ClientResponse Index Int
 
     step tp cmd = case cmd of
