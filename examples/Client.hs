@@ -43,9 +43,9 @@ data Client k v = Client
   }
 
 data Command k v = Command
-    { commandParsers :: [(S.ByteString, Atto.Parser (Cmd k v))]
+    { commandParsers :: [(S.ByteString, Atto.Parser (ClientCommand k v))]
     , commandHelp :: [(String, String)]
-    , commandExamples :: [(S.ByteString, Cmd k v)]
+    , commandExamples :: [(S.ByteString, ClientCommand k v)]
     }
 
 emptyClient :: Client S.ByteString Int
@@ -90,7 +90,7 @@ clientComplete commands0 rPrev = return . map simpleCompletion .
         prefixes = filter (current `isPrefixOf`)
         cmdNames = concatMap (map (S.unpack . fst) . commandParsers) commands0
 
-parseCommand :: [Command k v] -> Atto.Parser (Cmd k v)
+parseCommand :: [Command k v] -> Atto.Parser (ClientCommand k v)
 parseCommand commands0 = prefixChoice (concatMap commandParsers commands0)
   where
     prefixChoice = choice . fmap both . sortBy (flip $ on compare fst)
@@ -103,7 +103,7 @@ getStream = do
         Just s -> return s
         Nothing -> threadDelayMS 10 >> getStream
 
-execCommand :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> Cmd k v -> StateT (Client k v) IO ()
+execCommand :: (Show k, Show v, Serialize k, Serialize v) => [Command k v] -> ClientCommand k v -> StateT (Client k v) IO ()
 execCommand commands0 cmd = case cmd of
     CmdHelp mCmd -> liftIO . putStrLn $ showMaybeCommandHelp commands0 mCmd
     _ -> do

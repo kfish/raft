@@ -1,5 +1,5 @@
 module ClientTypes (
-    Cmd(..)
+    ClientCommand(..)
   , ClientResponse(..)
 ) where
 
@@ -8,7 +8,7 @@ import Control.Monad (mzero)
 import Data.Serialize
 import qualified Data.ByteString.Char8 as S
 
-data Cmd k v =
+data ClientCommand k v =
     CmdSet k v
   | CmdGet k
   | CmdSleep Int
@@ -23,7 +23,7 @@ data ClientResponse k v =
   | RspGetFail k
   deriving (Show, Eq)
 
-instance (Serialize k, Serialize v) => Serialize (Cmd k v) where
+instance (Serialize k, Serialize v) => Serialize (ClientCommand k v) where
     put (CmdSet k v) = do
         put 'S'
         put k
