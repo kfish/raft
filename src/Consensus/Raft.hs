@@ -18,6 +18,7 @@ module Consensus.Raft (
 ) where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad (when)
 import Data.Serialize
 import Data.Map (Map)
 import Data.Foldable (Foldable)
@@ -29,7 +30,8 @@ import qualified Consensus.Types as Consensus
 
 ----------------------------------------------------------------------
 
-data RaftPersistentState s = RaftPersistentState
+-- data RaftPersistentState s = RaftPersistentState
+data RaftPersistentState = RaftPersistentState
     {
 
     -- | Latest term server has seen (initialized to 0 on first boot,
@@ -39,9 +41,11 @@ data RaftPersistentState s = RaftPersistentState
     -- candidateId that received vote in current term (or Nothing if none)
     , votedFor :: Maybe Consensus.Identifier
 
+{-
     -- log entries; each entry contains command for state machine, and term
     -- when entry was received by leader (first index is 1)
     , log :: s
+-}
     }
 
 data RaftVolatileState = RaftVolatileState
@@ -68,11 +72,11 @@ data RaftLeaderVolatileState = RaftLeaderVolatileState
     , matchIndex :: Map Consensus.Identifier Int
     }
 
-data Raft s = RaftLeader (RaftPersistentState s) RaftVolatileState RaftLeaderVolatileState
-            | RaftFollower (RaftPersistentState s) RaftVolatileState
-            | RaftCandidate (RaftPersistentState s) RaftVolatileState
+data Raft s = RaftLeader RaftPersistentState RaftVolatileState RaftLeaderVolatileState
+            | RaftFollower RaftPersistentState RaftVolatileState
+            | RaftCandidate RaftPersistentState RaftVolatileState
 
-pstate :: Raft s -> RaftPersistentState s
+pstate :: Raft s -> RaftPersistentState
 pstate (RaftLeader rps _ _) = rps
 pstate (RaftFollower rps _) = rps
 pstate (RaftCandidate rps _) = rps
@@ -98,14 +102,14 @@ data AppendEntries s = AppendEntries
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
     -- , entries :: t (Consensus.Value s)
-    , entries :: [Consensus.Value s]
+    , entries :: [Consensus.ValueM s]
 
     -- Leader's commitIndex
     , leaderCommit :: Consensus.Index
     }
 
-instance ( Consensus.Store s
-         , Serialize (Consensus.Value s)
+instance ( Consensus.MonadStore s
+         , Serialize (Consensus.ValueM s)
          ) => Serialize (AppendEntries s) where
     put AppendEntries{..} = do
       put aeTerm
@@ -177,7 +181,7 @@ data RaftRequest s = AE (AppendEntries s)
 data RaftResponse = AER AppendEntriesResponse
                   | RVR RequestVoteResponse
 
-instance (Consensus.Store s) => Protocol (Raft s) where
+instance (Consensus.MonadStore s) => Protocol (Raft s) where
     type Request (Raft s) = RaftRequest s
 
     type Response (Raft s) = RaftResponse
@@ -192,7 +196,7 @@ instance (Consensus.Store s) => Protocol (Raft s) where
             -- Reply False if log doesn't contain an entry at prevLogIndex
             -- whose term matches prevLogTerm
 
-            let t = snd <$> Consensus.valueAt prevLogIndex log
+            t <- fmap snd <$> Consensus.valueAtM prevLogIndex
 
             if (t /= Just prevLogTerm)
               then return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
@@ -201,12 +205,16 @@ instance (Consensus.Store s) => Protocol (Raft s) where
             -- If an existing entry conflicts with a new one (same index but
             -- different terms), delete the existing entry and all that
             -- follow it.
-                  let log' = if (t /= Just aeTerm)
-                               then Consensus.runLogStore (Consensus.truncate' prevLogIndex) log
-                               else log
+{-
+                  let log' <- if (t /= Just aeTerm)
+                                then Consensus.runLogStoreM (Consensus.truncate' prevLogIndex) -- log
+                                else return log
+-}
+                  when (t /= Just aeTerm) $ do
+                      Consensus.runLogStoreM (Consensus.truncate' prevLogIndex)
 
                   -- Append any new entries not already in the log
-                  let log'' = Consensus.runLogStore (Consensus.store' (prevLogIndex+1) aeTerm entries ) log'
+                  Consensus.runLogStoreM (Consensus.store' (prevLogIndex+1) aeTerm entries )
 {-
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
 

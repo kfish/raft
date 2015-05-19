@@ -4,10 +4,11 @@ module Network.Protocol.Server (
       serveOn
 ) where
 
-import Control.Concurrent (forkIO)
+-- import Control.Concurrent (forkIO)
+import Control.Concurrent.MonadIO --(fork)
 import Control.Exception (finally)
 import Control.Monad (forever)
-import Control.Monad.Trans (liftIO)
+import Control.Monad.Trans (liftIO, MonadIO)
 import qualified Data.ByteString.Char8 as BS
 import Data.Serialize
 import Network
@@ -23,20 +24,20 @@ import Network.Stream.Types as Stream
 
 ----------------------------------------------------------------------
 
-serveOn :: (Protocol p, Serialize (Request p), Serialize (Response p))
-        => PortID -> p -> IO ()
+serveOn :: (HasFork m, MonadIO m, Protocol p m, Serialize (Request p), Serialize (Response p))
+        => PortID -> p -> m ()
 serveOn port p0 = do
-    s <- listenOn port
+    s <- liftIO $ listenOn port
     forever $ do
-        (h, addr) <- S.accept s
-        stream <- mkSocketStream h
-        forkIO (loop stream p0 `finally` S.sClose h)
+        (h, addr) <- liftIO $ S.accept s
+        stream <- liftIO $ mkSocketStream h
+        fork (loop stream p0 `finally` (liftIO $ S.sClose h))
   where
     loop stream p = do
-      cmd <- Stream.runGet stream get
+      cmd <- liftIO $ Stream.runGet stream get
       (p', m'rsp) <- step p cmd
       case m'rsp of
-          Just rsp -> Stream.runPut stream $ put rsp
+          Just rsp -> liftIO $ Stream.runPut stream $ put rsp
           Nothing -> return ()
       loop stream p'
 

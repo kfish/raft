@@ -38,6 +38,7 @@ library
     , exceptions           >= 0.6
     , free
     , mtl >= 2.0
+    , monadIO
     , network
     , text
     , transformers >= 0.4
