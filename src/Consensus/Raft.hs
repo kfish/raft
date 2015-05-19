@@ -1,9 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ImpredicativeTypes #-}
+-- {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-
 
@@ -66,11 +68,11 @@ data RaftLeaderVolatileState = RaftLeaderVolatileState
     , matchIndex :: Map Consensus.Identifier Int
     }
 
-data Raft a = RaftLeader (RaftPersistentState a) RaftVolatileState RaftLeaderVolatileState
-            | RaftFollower (RaftPersistentState a) RaftVolatileState
-            | RaftCandidate (RaftPersistentState a) RaftVolatileState
+data Raft s = RaftLeader (RaftPersistentState s) RaftVolatileState RaftLeaderVolatileState
+            | RaftFollower (RaftPersistentState s) RaftVolatileState
+            | RaftCandidate (RaftPersistentState s) RaftVolatileState
 
-pstate :: Raft a -> RaftPersistentState a
+pstate :: Raft s -> RaftPersistentState s
 pstate (RaftLeader rps _ _) = rps
 pstate (RaftFollower rps _) = rps
 pstate (RaftCandidate rps _) = rps
@@ -79,7 +81,7 @@ pstate (RaftCandidate rps _) = rps
 -- RPC
 --
 
-data AppendEntries t a = AppendEntries
+data AppendEntries s = AppendEntries
     {
     -- Leader's term
       aeTerm :: Consensus.Term
@@ -95,13 +97,16 @@ data AppendEntries t a = AppendEntries
 
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
-    , entries :: t a
+    -- , entries :: t (Consensus.Value s)
+    , entries :: [Consensus.Value s]
 
     -- Leader's commitIndex
     , leaderCommit :: Consensus.Index
     }
 
-instance (Foldable t, Serialize a, Serialize (t a)) => Serialize (AppendEntries t a) where
+instance ( Consensus.Store s
+         , Serialize (Consensus.Value s)
+         ) => Serialize (AppendEntries s) where
     put AppendEntries{..} = do
       put aeTerm
       put leaderId
@@ -166,52 +171,52 @@ instance Serialize RequestVoteResponse where
 
 ----------------------------------------------------------------------
 
-data RaftRequest t a = AE (AppendEntries t a)
-                     | RV RequestVote
+data RaftRequest s = AE (AppendEntries s)
+                   | RV RequestVote
 
 data RaftResponse = AER AppendEntriesResponse
                   | RVR RequestVoteResponse
 
-instance (Foldable t) => Protocol (Raft (t a)) where
-    type Request (Raft (t a)) = RaftRequest t a
+instance (Consensus.Store s) => Protocol (Raft s) where
+    type Request (Raft s) = RaftRequest s
 
-    type Response (Raft (t a)) = RaftResponse
+    type Response (Raft s) = RaftResponse
 
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
-        | aeTerm < term = return (receiver, Just . AER$ AppendEntriesResponse term False)
+        | aeTerm < currentTerm =
+              return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
 
-        | otherwise =
-
-{-
-                      do
+        | otherwise = do
 
             -- Reply False if log doesn't contain an entry at prevLogIndex
             -- whose term matches prevLogTerm
-            t <- snd <$> Consensus.query prevLogIndex s
-            if (t /= Just prevLogTerm)
-              then (receiver, AER$ AppendEntriesResponse term False)
-              else do
 
+            let t = snd <$> Consensus.valueAt prevLogIndex log
+
+            if (t /= Just prevLogTerm)
+              then return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
+              else do
 
             -- If an existing entry conflicts with a new one (same index but
             -- different terms), delete the existing entry and all that
             -- follow it.
-            when (t /= aeTerm)
-                truncate prevLogIndex s
+                  let log' = if (t /= Just aeTerm)
+                               then Consensus.runLogStore (Consensus.truncate' prevLogIndex) log
+                               else log
 
-        -- Append any new entries not already in the log
-            store ix entries aeTerm s
-
+                  -- Append any new entries not already in the log
+                  let log'' = Consensus.runLogStore (Consensus.store' (prevLogIndex+1) aeTerm entries ) log'
+{-
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
-        -}
 
-          return (receiver, Just . AER$ AppendEntriesResponse aeTerm True)
+-}
+                  return (receiver, Just . AER$ AppendEntriesResponse aeTerm True)
       where
-        term = currentTerm (pstate receiver)
+        RaftPersistentState{..} = pstate receiver
 
-        match prevLogIndex s Nothing = False
-        match prevLogIndex s (Just (v, t)) = t == prevLogIndex
+        -- match prevLogIndex s Nothing = False
+        -- match prevLogIndex s (Just (v, t)) = t == prevLogIndex
 
     -- Follower receiving RequestVote
     step receiver@(RaftFollower p@RaftPersistentState{..} vol) (RV RequestVote{..})
