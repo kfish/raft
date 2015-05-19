@@ -30,28 +30,25 @@ import qualified TestStore as TS
 
 ----------------------------------------------------------------------
 
-data TestProtocol = TestProtocol
-    { ts :: TS.TestStore
+data TestProtocol s = TestProtocol
+    { ts :: s
     }
 
-instance Protocol TestProtocol where
+instance (Store s) => Protocol (TestProtocol s) where
 
     -- Look, really you want a test protocol that just stores strings against indexes.
     -- First step: parse/send the key as an Index (ie. int) not a string key
 
-    type Request TestProtocol = ClientCommand Index Int
-    type Response TestProtocol = ClientResponse Index Int
+    type Request (TestProtocol s) = ClientCommand Index (Value s)
+    type Response (TestProtocol s) = ClientResponse Index (Value s)
 
     step tp cmd = case cmd of
           CmdSet k v -> do
-              let s' = flip State.execState (ts tp) $ do
-                         TS.runTestStore (store' 0 (Term 0) [v] >> end')
+              let s' = runLogStore (store' k (Term 0) [v] >> end') (ts tp)
               return (tp{ts=s'}, Just $ RspSetOK k v)
 
           CmdGet k -> do
-              let res = flip evalState (ts tp) $ do
-                          TS.TestStore s _c <- State.get
-                          return $ Map.lookup k s
+              let res = valueAt k (ts tp)
               let rsp = case res of
                             Just (v, _) -> RspGetOK k v
                             Nothing -> RspGetFail k

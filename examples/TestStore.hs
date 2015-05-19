@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module TestStore (
     TestStore(..)
@@ -10,7 +12,7 @@ module TestStore (
   -- , testCommit
   -- , testTruncate
 
-  , testState
+  -- , testState
   , runTestStore
 ) where
 
@@ -66,11 +68,13 @@ testTruncate ix ts = runIdentity $ CS.truncate ix ts
 
 ----------------------------------------------------------------------
 
+{-
 testState :: Free (CS.LogStoreF [] Int) a -> CS.Index -> Maybe (Int, CS.Term)
 testState f ix = flip evalState empty $ do
     runTestStore (f >> CS.end')
     TestStore s _c <- get
     return $ Map.lookup ix s
+    -}
 
 runTestStore :: (MonadState TestStore m, Fold.Foldable t)
              => Free (CS.LogStoreF t Int) () -> m ()
@@ -90,3 +94,8 @@ runTestStore (Free x) = case x of
         modify $ \(TestStore s c) ->
             TestStore (fst (Map.split ix s)) (min ix c)
     CS.LogEnd -> return ()
+
+instance CS.Store TestStore where
+    type Value TestStore = Int
+    runLogStore cmds = execState (runTestStore cmds)
+    valueAt ix ts = Map.lookup ix (tsInternal ts)

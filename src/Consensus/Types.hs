@@ -6,7 +6,7 @@ module Consensus.Types (
     , Index
     , Term(..)
 
-    -- , Store(..)
+    , Store(..)
 
     , LogStoreF(..)
     , query'
@@ -18,8 +18,9 @@ module Consensus.Types (
 
 import Control.Applicative ((<$>))
 import Control.Monad.Free
-import Data.Serialize
 import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
+import Data.Serialize
 
 import Network.Protocol
 
@@ -101,3 +102,10 @@ truncate' ix = liftF (LogTruncate ix ())
 
 end' :: MonadFree (LogStoreF t entry) m => m ()
 end' = liftF LogEnd
+
+class Store s where
+    type Value s :: *
+
+    runLogStore :: (Fold.Foldable t)
+                => Free (LogStoreF t (Value s)) () -> s -> s
+    valueAt :: Index -> s -> Maybe (Value s, Term)
