@@ -48,7 +48,10 @@ data Command k v = Command
     , commandExamples :: [(S.ByteString, ClientCommand k v)]
     }
 
-emptyClient :: Client S.ByteString Int
+type ClientKey = Int
+type ClientValue = Int -- S.ByteString
+
+emptyClient :: Client ClientKey ClientValue
 emptyClient = Client Nothing
 
 main :: IO ()
@@ -109,8 +112,9 @@ execCommand commands0 cmd = case cmd of
     _ -> do
         stream <- getStream
         liftIO $ do
+            putStrLn $ "Sending: " ++ show cmd
             Stream.runPut stream $ put cmd
-            rsp <- Stream.runGet stream (get :: Get (ClientResponse S.ByteString Int))
+            rsp <- Stream.runGet stream (get :: Get (ClientResponse ClientKey ClientValue))
             putStrLn $ "Got response " ++ show rsp
             -- response <- hGetLine h
             -- putStrLn $ "Got response " ++ response
@@ -178,34 +182,37 @@ breakLines n s
 
 ----------------------------------------------------------------------
 
-commands :: [Command S.ByteString Int]
+commands :: [Command ClientKey ClientValue]
 commands = [cmdHelp, cmdGet, cmdSet, cmdSleep]
 
-cmdHelp :: Command S.ByteString Int
+cmdHelp :: Command ClientKey ClientValue
 cmdHelp = Command [("help", parser)]
     []
     []
   where
     parser = CmdHelp <$ skipSpace <*> ((Just <$> (takeWhile1 (not . isSpace))) <|> pure Nothing)
 
-cmdGet :: Command S.ByteString Int
+cmdGet :: Command ClientKey ClientValue
 cmdGet = Command [("get", parser)]
     [("get", "Request a value from the log")]
-    [("get x", CmdGet "x")]
+    [("get 7", CmdGet 7)]
   where
-    parser = CmdGet <$ skipSpace <*> takeWhile1 (not . isSpace)
+    parser = CmdGet <$ skipSpace <*> decimal -- takeWhile1 (not . isSpace)
 
-cmdSet :: Command S.ByteString Int
+cmdSet :: Command ClientKey ClientValue
 cmdSet = Command [("set", parser)]
     [("set", "Request to set a value in the log")]
-    [("set x=7", CmdSet "x" 7)]
+    -- [("set x=foo", CmdSet "x" "foo")]
+    [("set 7=7", CmdSet 7 7)]
   where
     parser = CmdSet <$ skipSpace
-                 <*> (takeWhile1 (\x -> not (isSpace x) && x /= '=')
+                 -- <*> (takeWhile1 (\x -> not (isSpace x) && x /= '=')
+                 <*> (decimal
                          <* skipMany space <* char '=' <* skipMany space)
                  <*> decimal
+                 -- <*> takeWhile1 (not . isSpace)
 
-cmdSleep :: Command S.ByteString Int
+cmdSleep :: Command ClientKey ClientValue
 cmdSleep = Command [("sleep", parser)]
     []
     []

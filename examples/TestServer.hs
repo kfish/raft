@@ -28,6 +28,8 @@ import Network.Protocol.Server
 import Consensus.Types
 import qualified TestStore as TS
 
+import Debug.Trace
+
 ----------------------------------------------------------------------
 
 data TestProtocol s = TestProtocol
@@ -43,7 +45,7 @@ instance (Store s) => Protocol (TestProtocol s) where
     type Response (TestProtocol s) = ClientResponse Index (Value s)
 
     step tp cmd = case cmd of
-          CmdSet k v -> do
+          CmdSet k v -> trace ("step CmdSet " ++ show k) $do
               let s' = runLogStore (store' k (Term 0) [v] >> end') (ts tp)
               return (tp{ts=s'}, Just $ RspSetOK k v)
 

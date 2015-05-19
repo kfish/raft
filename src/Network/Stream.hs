@@ -34,6 +34,8 @@ import qualified Network.Socket.ByteString.Lazy as L (sendAll)
 import Network.Stream.Types
 -- import           Data.Hadoop.Types
 
+import Debug.Trace
+
 --------------------------------------------------------------------------------
 
 -- | State of the stream
@@ -120,13 +122,13 @@ maybeGet stream getter = do
             | B.null remainder -> return Nothing
             | otherwise        -> go (Get.runGetPartial getter remainder) True
         Open buffer
-            | B.null buffer -> do
+            | B.null buffer -> trace "Open buffer null" $ do
                 mbBs <- streamIn stream
                 case mbBs of
-                    Nothing -> do
+                    Nothing -> trace "Open buffer Nothing" $ do
                         writeIORef (streamState stream) (Closed B.empty)
                         return Nothing
-                    Just bs -> go (Get.runGetPartial getter bs) False
+                    Just bs -> trace ("Open buffer Just" ++ show bs) $ go (Get.runGetPartial getter bs) False
             | otherwise     -> go (Get.runGetPartial getter buffer) False
   where
     -- Buffer is empty when entering this function.
@@ -151,10 +153,11 @@ runGet stream getter = maybe throwClosed return =<< maybeGet stream getter
 --------------------------------------------------------------------------------
 
 runPut :: Stream -> Put.Put -> IO ()
-runPut stream = write stream . Put.runPutLazy
+runPut stream = write stream . L.fromStrict . Put.runPut --Lazy
 
 write :: Stream -> L.ByteString -> IO ()
-write stream = streamOut stream . Just
+-- write stream = streamOut stream . Just
+write stream bs = trace ("write stream " ++ show bs) $ streamOut stream $ Just bs
 
 --------------------------------------------------------------------------------
 

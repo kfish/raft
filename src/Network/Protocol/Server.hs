@@ -33,7 +33,9 @@ serveOn port p0 = do
         forkIO (loop stream p0 `finally` S.sClose h)
   where
     loop stream p = do
+      putStrLn $ "Waiting for cmd ..."
       cmd <- Stream.runGet stream get
+      putStrLn $ "Got some cmd"
       (p', m'rsp) <- step p cmd
       case m'rsp of
           Just rsp -> Stream.runPut stream $ put rsp
