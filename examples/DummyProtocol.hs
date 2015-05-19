@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Consensus.Dummy where
+module DummyProtocol where
 
 import Network.Protocol
 
