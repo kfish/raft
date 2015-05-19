@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module SqliteStore (
     SqliteStore(..)
@@ -20,7 +22,7 @@ import Control.Monad.State
 import qualified Data.Foldable as Fold
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (listToMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Text as T
 
 import qualified Database.SQLite.Simple as Sqlite
@@ -42,59 +44,68 @@ tableExists conn tblName = do
 createTables :: Sqlite.Connection -> IO ()
 createTables conn = do
     schemaCreated <- tableExists conn "kv"
-    unless schemaCreated $ Sqlite.execute_ conn
-        (Sqlite.Query $ T.concat
+    unless schemaCreated $ do
+        Sqlite.execute_ conn (Sqlite.Query $ T.concat
             [ "CREATE TABLE store ("
             , "ix    INTEGER PRIMARY KEY, "
             , "value INTEGER"
             , "term  INTEGER"
             , ")"
-            ]
-        )
+            ])
+        Sqlite.execute_ conn (Sqlite.Query $ T.concat
+            [ "CREATE TABLE meta ("
+            , "latestCommit INTEGER"
+            , ")"
+            ])
 
 ----------------------------------------------------------------------
 
 data SqliteStore = SqliteStore {
       ssConnection :: Sqlite.Connection
-    , tsLatestCommit :: CS.Index
     }
+
+type SqliteStoreM = StateT SqliteStore IO
 
 open :: IO SqliteStore
 open = do
       conn <- Sqlite.open "test.db"
       createTables conn
-      return (SqliteStore conn 0)
+      return (SqliteStore conn)
 
-runSqliteStore :: (m ~ StateT SqliteStore IO, Fold.Foldable t)
-               => Free (CS.LogStoreF t Int) () -> m ()
+runSqliteStore :: (Fold.Foldable t)
+               => Free (CS.LogStoreF t Int) () -> SqliteStoreM ()
 runSqliteStore (Pure r) = return r
 runSqliteStore (Free x) = case x of
     CS.LogQuery ix cont -> do
-        SqliteStore conn c <- get
+        SqliteStore conn <- get
         res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
         runSqliteStore $ cont (second CS.Term <$> listToMaybe res)
     CS.LogStore ix (CS.Term term) xs next -> do
-        SqliteStore conn c <- get
+        SqliteStore conn <- get
         liftIO $ mapM_ (\(ixx, x) ->
                            Sqlite.execute conn "insert into store (ix,value,term) values (?)" [ixx, x, term])
                        (zip [ix..] (Fold.toList xs))
         runSqliteStore next
     CS.LogCommit ix next -> do
-        modify $ \ss -> ss { tsLatestCommit = ix }
+        SqliteStore conn <- get
+        liftIO $ Sqlite.execute conn "insert into meta (latestCommit) values (?)" [ix]
         runSqliteStore next
     CS.LogTruncate ix next -> do
-        SqliteStore conn c <- get
-        liftIO $ Sqlite.execute conn "delete from store where ix > (?)" [min ix c]
+        SqliteStore conn <- get
+        liftIO $ do
+            res <- Sqlite.query_ conn "select from meta (latestCommit)"
+            let [c] = fromMaybe [0] (listToMaybe res)
+            Sqlite.execute conn "delete from store where ix > (?)" [min ix c]
         runSqliteStore next
     CS.LogEnd -> return ()
 
-{-
-instance CS.Store SqliteStore where
-    type Value SqliteStore = Int
-    runLogStore cmds = execStateT (runSqliteStore cmds)
-    valueAt ix ts = Map.lookup ix (tsInternal ts)
--}
-
+instance CS.MonadStore SqliteStoreM where
+    type ValueM SqliteStoreM = Int
+    runLogStoreM cmds = runSqliteStore cmds
+    valueAtM ix = do
+        SqliteStore conn <- get
+        res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
+        return (second CS.Term <$> listToMaybe res)
 
 {-
 ensureConnection :: SqliteStore -> IO SqliteStore
