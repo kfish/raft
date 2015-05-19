@@ -16,6 +16,7 @@ module TestStore (
   , runTestStore
 ) where
 
+import qualified Data.ByteString.Char8 as S
 import Data.Functor.Identity
 
 import Control.Monad.Free
@@ -30,6 +31,7 @@ import qualified Consensus.Types as CS
 ----------------------------------------------------------------------
 
 data TestStore = TestStore {
+      -- tsInternal :: Map CS.Index (S.ByteString, CS.Term)
       tsInternal :: Map CS.Index (Int, CS.Term)
     , tsLatestCommit :: CS.Index
     }
