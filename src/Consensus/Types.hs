@@ -7,6 +7,7 @@ module Consensus.Types (
     , Term(..)
 
     , Store(..)
+    , MonadStore(..)
 
     , LogStoreF(..)
     , query'
@@ -18,6 +19,7 @@ module Consensus.Types (
 
 import Control.Applicative ((<$>))
 import Control.Monad.Free
+import Control.Monad.Trans (MonadIO)
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Serialize
@@ -110,3 +112,9 @@ class Store s where
     --             => Free (LogStoreF t (Value s)) () -> s -> s
     runLogStore :: Free (LogStoreF [] (Value s)) () -> s -> s
     valueAt :: Index -> s -> Maybe (Value s, Term)
+
+class Monad m => MonadStore m where
+    type ValueM m :: *
+
+    runLogStoreM :: Free (LogStoreF [] (ValueM m)) () -> m ()
+    valueAtM :: Index -> m (Maybe (ValueM m, Term))
