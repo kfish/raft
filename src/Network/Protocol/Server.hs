@@ -34,7 +34,7 @@ serveOn port p0 = do
   where
     loop stream p = do
       cmd <- Stream.runGet stream get
-      (p', m'rsp) <- step p cmd
+      let (p', e, m'rsp) = step p cmd
       case m'rsp of
           Just rsp -> Stream.runPut stream $ put rsp
           Nothing -> return ()

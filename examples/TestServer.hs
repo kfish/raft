@@ -7,6 +7,7 @@ module Main where
 import Control.Concurrent (forkIO)
 import Control.Exception (finally)
 import Control.Monad (forever)
+import Control.Monad.Free
 import Control.Monad.State as State
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Char8 as BS
@@ -41,20 +42,21 @@ instance (Store s) => Protocol (TestProtocol s) where
 
     type Request (TestProtocol s) = ClientCommand Index (Value s)
     type Response (TestProtocol s) = ClientResponse Index (Value s)
+    type Effects (TestProtocol s) = Free (LogStoreF [] (Value s)) ()
 
     step tp cmd = case cmd of
-          CmdSet k v -> do
+          CmdSet k v ->
               let s' = runLogStore (store' k (Term 0) [v] >> end') (ts tp)
-              return (tp{ts=s'}, Just $ RspSetOK k v)
+              in (tp{ts=s'}, Free LogEnd, Just $ RspSetOK k v)
 
-          CmdGet k -> do
+          CmdGet k ->
               let res = valueAt k (ts tp)
-              let rsp = case res of
+                  rsp = case res of
                             Just (v, _) -> RspGetOK k v
                             Nothing -> RspGetFail k
-              return (tp, Just $ rsp)
+              in (tp, Free LogEnd, Just $ rsp)
 
-          CmdSleep n -> return (tp, Nothing)
+          CmdSleep n -> (tp, Free LogEnd, Nothing)
 
 ----------------------------------------------------------------------
 

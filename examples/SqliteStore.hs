@@ -106,3 +106,11 @@ instance CS.MonadStore SqliteStoreM where
         SqliteStore conn <- get
         res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
         return (second CS.Term <$> listToMaybe res)
+
+instance CS.StoreIO SqliteStoreM where
+    type ValueIO SqliteStoreM = Int
+    runLogStoreIO cmds = runSqliteStore cmds
+    valueAtIO ix = do
+        SqliteStore conn <- get
+        res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
+        return (second CS.Term <$> listToMaybe res)

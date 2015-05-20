@@ -8,6 +8,7 @@ module Consensus.Types (
 
     , Store(..)
     , MonadStore(..)
+    , StoreIO(..)
 
     , LogStoreF(..)
     , query'
@@ -118,3 +119,9 @@ class Monad m => MonadStore m where
 
     runLogStoreM :: Free (LogStoreF [] (ValueM m)) () -> m ()
     valueAtM :: Index -> m (Maybe (ValueM m, Term))
+
+class MonadIO m => StoreIO m where
+    type ValueIO m :: *
+
+    runLogStoreIO :: Free (LogStoreF [] (ValueIO m)) () -> m ()
+    valueAtIO     :: Index -> m (Maybe (ValueIO m, Term))
