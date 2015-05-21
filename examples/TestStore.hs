@@ -1,9 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module TestStore (
     TestStore(..)
@@ -54,7 +50,6 @@ runTestStore (Free x) = case x of
         modify $ \(TestStore s c) ->
             TestStore (fst (Map.split ix s)) (min ix c)
         runTestStore next
-    -- CS.LogEnd -> return ()
 
 instance CS.Store TestStore where
     type Value TestStore = Int

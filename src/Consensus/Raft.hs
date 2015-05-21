@@ -1,10 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
--- {-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-
@@ -189,7 +185,6 @@ instance (Consensus.Store s) => Protocol (Raft s) where
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
         | aeTerm < currentTerm =
-              -- Consensus.end' (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
               return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
 
         | otherwise = do
@@ -200,7 +195,6 @@ instance (Consensus.Store s) => Protocol (Raft s) where
             t <- fmap snd <$> Consensus.query' prevLogIndex
 
             if (t /= Just prevLogTerm)
-              -- then (receiver, Free Consensus.LogEnd, Just . AER$ AppendEntriesResponse currentTerm False)
               then return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
               else do
 
@@ -210,7 +204,7 @@ instance (Consensus.Store s) => Protocol (Raft s) where
                   when (t /= Just aeTerm) $ Consensus.truncate' prevLogIndex
 
                   -- Append any new entries not already in the log
-                  log'' <- Consensus.store' (prevLogIndex+1) aeTerm entries
+                  Consensus.store' (prevLogIndex+1) aeTerm entries
 {-
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
 

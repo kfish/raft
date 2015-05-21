@@ -1,10 +1,6 @@
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 
 module SqliteStore (
     SqliteStore(..)
@@ -97,31 +93,11 @@ runSqliteStore (Free x) = case x of
             let [c] = fromMaybe [0] (listToMaybe res)
             Sqlite.execute conn "delete from store where ix > (?)" [min ix c]
         runSqliteStore next
-    -- CS.LogEnd -> return ()
 
 instance CS.Store SqliteStore where
     type Value SqliteStore = Int
-    -- type Interpretation SqliteStore = SqliteStoreM
 
 instance CS.StoreIO SqliteStore where
-    -- interpret cmds = runSqliteStore cmds
     interpret cmds s = do
         (r, s') <- runStateT (runSqliteStore cmds) s
         return (s', r)
-
-    {-
-    valueAtM ix = do
-        SqliteStore conn <- get
-        res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
-        return (second CS.Term <$> listToMaybe res)
-        -}
-
-{-
-instance CS.StoreIO SqliteStoreM where
-    type ValueIO SqliteStoreM = Int
-    runLogStoreIO cmds = runSqliteStore cmds
-    valueAtIO ix = do
-        SqliteStore conn <- get
-        res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
-        return (second CS.Term <$> listToMaybe res)
-        -}
