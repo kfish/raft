@@ -7,8 +7,9 @@ module Consensus.Types (
     , Term(..)
 
     , Store(..)
-    , MonadStore(..)
     , StoreIO(..)
+    -- , MonadStore(..)
+    -- , StoreIO(..)
 
     , LogStoreF(..)
     , query'
@@ -78,9 +79,12 @@ class Store s where
 
 
 data LogStoreF t entry next
+    -- | Query the value at a given index
     = LogQuery Index (Maybe (entry, Term) -> next)
+    -- | Store a value at a given index
     | LogStore Index Term (t entry) next
     | LogCommit Index next
+    -- | Delete a given entry and all that follow it
     | LogTruncate Index next
     | LogEnd
 
@@ -103,9 +107,18 @@ commit' ix = liftF (LogCommit ix ())
 truncate' :: MonadFree (LogStoreF t entry) m => Index -> m ()
 truncate' ix = liftF (LogTruncate ix ())
 
+
+-- XXX: Just fucking use return/pure
 end' :: MonadFree (LogStoreF t entry) m => m ()
 end' = liftF LogEnd
 
+class Store s where
+    type Value s :: *
+
+class Store s => StoreIO s where
+    interpret :: Free (LogStoreF [] (Value s)) r -> s -> IO (s, r)
+
+{-
 class Store s where
     type Value s :: *
 
@@ -113,15 +126,20 @@ class Store s where
     --             => Free (LogStoreF t (Value s)) () -> s -> s
     runLogStore :: Free (LogStoreF [] (Value s)) () -> s -> s
     valueAt :: Index -> s -> Maybe (Value s, Term)
+    -}
 
+{-
 class Monad m => MonadStore m where
     type ValueM m :: *
 
     runLogStoreM :: Free (LogStoreF [] (ValueM m)) () -> m ()
     valueAtM :: Index -> m (Maybe (ValueM m, Term))
+    -}
 
+{-
 class MonadIO m => StoreIO m where
     type ValueIO m :: *
 
     runLogStoreIO :: Free (LogStoreF [] (ValueIO m)) () -> m ()
     valueAtIO     :: Index -> m (Maybe (ValueIO m, Term))
+    -}

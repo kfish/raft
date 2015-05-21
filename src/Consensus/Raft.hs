@@ -19,6 +19,7 @@ module Consensus.Raft (
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Free
+import Control.Monad (when)
 import Data.Serialize
 import Data.Map (Map)
 import Data.Foldable (Foldable)
@@ -183,38 +184,38 @@ instance (Consensus.Store s) => Protocol (Raft s) where
 
     type Response (Raft s) = RaftResponse
 
-    type Effects (Raft s) = Free (Consensus.LogStoreF [] (Consensus.Value s)) ()
+    type Effects (Raft s) = Free (Consensus.LogStoreF [] (Consensus.Value s))
 
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
         | aeTerm < currentTerm =
-              (receiver, Free Consensus.LogEnd, Just . AER$ AppendEntriesResponse currentTerm False)
+              -- Consensus.end' (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
+              return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
 
         | otherwise = do
 
             -- Reply False if log doesn't contain an entry at prevLogIndex
             -- whose term matches prevLogTerm
 
-            let t = snd <$> Consensus.valueAt prevLogIndex log
+            t <- fmap snd <$> Consensus.query' prevLogIndex
 
             if (t /= Just prevLogTerm)
-              then (receiver, Free Consensus.LogEnd, Just . AER$ AppendEntriesResponse currentTerm False)
-              else
+              -- then (receiver, Free Consensus.LogEnd, Just . AER$ AppendEntriesResponse currentTerm False)
+              then return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
+              else do
 
             -- If an existing entry conflicts with a new one (same index but
             -- different terms), delete the existing entry and all that
             -- follow it.
-                  let log' = if (t /= Just aeTerm)
-                               then Consensus.runLogStore (Consensus.truncate' prevLogIndex) log
-                               else log
+                  when (t /= Just aeTerm) $ Consensus.truncate' prevLogIndex
 
                   -- Append any new entries not already in the log
-                      log'' = Consensus.runLogStore (Consensus.store' (prevLogIndex+1) aeTerm entries ) log'
+                  log'' <- Consensus.store' (prevLogIndex+1) aeTerm entries
 {-
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
 
 -}
-                  in (receiver, Free Consensus.LogEnd, Just . AER$ AppendEntriesResponse aeTerm True)
+                  return (receiver, Just . AER$ AppendEntriesResponse aeTerm True)
       where
         RaftPersistentState{..} = pstate receiver
 
@@ -225,13 +226,13 @@ instance (Consensus.Store s) => Protocol (Raft s) where
     step receiver@(RaftFollower p@RaftPersistentState{..} vol) (RV RequestVote{..})
         -- Reply False if term < currentTerm
         | rvTerm < currentTerm
-          = (receiver, Free Consensus.LogEnd, Just. RVR$ RequestVoteResponse currentTerm False)
+          = return (receiver, Just. RVR$ RequestVoteResponse currentTerm False)
 
         -- If votedFor is null or candidateId, and candidate's log is at
         -- least as up-to-date as receiver's log, grant vote
         | (votedFor == Nothing || votedFor == Just candidateId)
           && lastLogTerm <= currentTerm
-          = (RaftFollower granted vol, Free Consensus.LogEnd, Just . RVR$ RequestVoteResponse rvTerm True)
+          = return (RaftFollower granted vol, Just . RVR$ RequestVoteResponse rvTerm True)
       where
         granted = p { votedFor = Just candidateId }
 
@@ -240,4 +241,4 @@ instance (Consensus.Store s) => Protocol (Raft s) where
     -- ??? If a server that is not a Follower receives a RequestVote, return False
     -- ??? what term to return? update volatile term?
     step receiver (RV _)
-      = (receiver, Free Consensus.LogEnd, Just . RVR$ RequestVoteResponse (currentTerm (pstate receiver)) False)
+      = return (receiver, Just . RVR$ RequestVoteResponse (currentTerm (pstate receiver)) False)

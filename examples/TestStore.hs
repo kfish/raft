@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module TestStore (
@@ -9,6 +10,7 @@ module TestStore (
   , empty
 ) where
 
+import Control.Applicative ((<$>))
 import qualified Data.ByteString.Char8 as S
 import Data.Functor.Identity
 
@@ -34,7 +36,7 @@ empty = TestStore Map.empty 0
 ----------------------------------------------------------------------
 
 runTestStore :: (MonadState TestStore m, Fold.Foldable t)
-             => Free (CS.LogStoreF t Int) () -> m ()
+             => Free (CS.LogStoreF t Int) r -> m r
 runTestStore (Pure r) = return r
 runTestStore (Free x) = case x of
     CS.LogQuery ix cont -> do
@@ -52,9 +54,12 @@ runTestStore (Free x) = case x of
         modify $ \(TestStore s c) ->
             TestStore (fst (Map.split ix s)) (min ix c)
         runTestStore next
-    CS.LogEnd -> return ()
+    -- CS.LogEnd -> return ()
 
 instance CS.Store TestStore where
     type Value TestStore = Int
-    runLogStore cmds = execState (runTestStore cmds)
-    valueAt ix ts = Map.lookup ix (tsInternal ts)
+
+instance CS.StoreIO TestStore where
+    interpret cmds s = do
+        (r, s') <- runStateT (runTestStore cmds) s
+        return (s', r)

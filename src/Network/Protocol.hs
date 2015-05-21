@@ -7,7 +7,7 @@ module Network.Protocol (
 ) where
 
 
-import Control.Monad.State
+-- import Control.Monad.State
 
 class Protocol p where
 
@@ -15,10 +15,9 @@ class Protocol p where
 
     type Response p :: *
 
-    type Effects p :: *
+    type Effects p :: * -> *
 
-    -- step :: Monad m => p -> Request p -> m (p, Maybe (Response p))
-    step :: p -> Request p -> (p, Effects p, Maybe (Response p))
+    step :: p -> Request p -> Effects p (p, Maybe (Response p))
 
 {-
 class (MonadIO m) => EvalIO s m where

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Network.Protocol.Server (
       serveOn
@@ -21,22 +22,28 @@ import Network.Stream as Stream
 import Network.Stream.Socket as Stream
 import Network.Stream.Types as Stream
 
+import Control.Monad.Free
+import Consensus.Types(Store(..), StoreIO(..), LogStoreF)
+
 ----------------------------------------------------------------------
 
-serveOn :: (Protocol p, Serialize (Request p), Serialize (Response p))
-        => PortID -> p -> IO ()
-serveOn port p0 = do
+serveOn :: (StoreIO s, Protocol p, Serialize (Request p), Serialize (Response p),
+            Effects p ~ Free (LogStoreF [] (Value s)))
+        => PortID -> p -> s -> IO ()
+serveOn port p0 store0 = do
     s <- listenOn port
     forever $ do
         (h, addr) <- S.accept s
         stream <- mkSocketStream h
-        forkIO (loop stream p0 `finally` S.sClose h)
+        forkIO (loop stream p0 store0 `finally` S.sClose h)
   where
-    loop stream p = do
+    loop stream p store = do
       cmd <- Stream.runGet stream get
-      let (p', e, m'rsp) = step p cmd
+
+      let e = step p cmd
+      (store', (p', m'rsp)) <- interpret e store
       case m'rsp of
           Just rsp -> Stream.runPut stream $ put rsp
           Nothing -> return ()
-      loop stream p'
+      loop stream p' store'
 

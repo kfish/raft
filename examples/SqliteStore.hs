@@ -73,7 +73,7 @@ open = do
       return (SqliteStore conn)
 
 runSqliteStore :: (Fold.Foldable t)
-               => Free (CS.LogStoreF t Int) () -> SqliteStoreM ()
+               => Free (CS.LogStoreF t Int) r -> SqliteStoreM r
 runSqliteStore (Pure r) = return r
 runSqliteStore (Free x) = case x of
     CS.LogQuery ix cont -> do
@@ -97,16 +97,26 @@ runSqliteStore (Free x) = case x of
             let [c] = fromMaybe [0] (listToMaybe res)
             Sqlite.execute conn "delete from store where ix > (?)" [min ix c]
         runSqliteStore next
-    CS.LogEnd -> return ()
+    -- CS.LogEnd -> return ()
 
-instance CS.MonadStore SqliteStoreM where
-    type ValueM SqliteStoreM = Int
-    runLogStoreM cmds = runSqliteStore cmds
+instance CS.Store SqliteStore where
+    type Value SqliteStore = Int
+    -- type Interpretation SqliteStore = SqliteStoreM
+
+instance CS.StoreIO SqliteStore where
+    -- interpret cmds = runSqliteStore cmds
+    interpret cmds s = do
+        (r, s') <- runStateT (runSqliteStore cmds) s
+        return (s', r)
+
+    {-
     valueAtM ix = do
         SqliteStore conn <- get
         res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
         return (second CS.Term <$> listToMaybe res)
+        -}
 
+{-
 instance CS.StoreIO SqliteStoreM where
     type ValueIO SqliteStoreM = Int
     runLogStoreIO cmds = runSqliteStore cmds
@@ -114,3 +124,4 @@ instance CS.StoreIO SqliteStoreM where
         SqliteStore conn <- get
         res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
         return (second CS.Term <$> listToMaybe res)
+        -}

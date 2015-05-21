@@ -42,26 +42,26 @@ instance (Store s) => Protocol (TestProtocol s) where
 
     type Request (TestProtocol s) = ClientCommand Index (Value s)
     type Response (TestProtocol s) = ClientResponse Index (Value s)
-    type Effects (TestProtocol s) = Free (LogStoreF [] (Value s)) ()
+    type Effects (TestProtocol s) = Free (LogStoreF [] (Value s)) -- (s, Response s)
 
     step tp cmd = case cmd of
-          CmdSet k v ->
-              let s' = runLogStore (store' k (Term 0) [v] >> end') (ts tp)
-              in (tp{ts=s'}, Free LogEnd, Just $ RspSetOK k v)
+          CmdSet k v -> do
+              store' k (Term 0) [v]
+              return (tp, Just $ RspSetOK k v)
 
-          CmdGet k ->
-              let res = valueAt k (ts tp)
-                  rsp = case res of
+          CmdGet k -> do
+              res <- query' k
+              let rsp = case res of
                             Just (v, _) -> RspGetOK k v
                             Nothing -> RspGetFail k
-              in (tp, Free LogEnd, Just $ rsp)
+              return (tp, Just rsp)
 
-          CmdSleep n -> (tp, Free LogEnd, Nothing)
+          CmdSleep n -> return (tp, Nothing)
 
 ----------------------------------------------------------------------
 
 main :: IO ()
 main = do
   let store = TestProtocol TS.empty
-  serveOn (PortNumber 44444) store
+  serveOn (PortNumber 44444) store TS.empty
 
