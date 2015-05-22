@@ -4,23 +4,9 @@
 
 module Main where
 
-import Control.Concurrent (forkIO)
-import Control.Exception (finally)
-import Control.Monad (forever)
 import Control.Monad.Free
-import Control.Monad.State as State
-import Control.Monad.Trans (liftIO)
-import qualified Data.ByteString.Char8 as BS
-import Data.Serialize
-import qualified Data.Map as Map
 import Network
-import Network.Socket as S
-import System.IO
-import Text.Printf
 
-import Network.Stream as Stream
-import Network.Stream.Socket as Stream
-import Network.Stream.Types as Stream
 import ClientTypes
 
 import Network.Protocol
@@ -31,37 +17,35 @@ import qualified TestStore as TS
 
 ----------------------------------------------------------------------
 
-data TestProtocol s = TestProtocol
-    { ts :: s
-    }
+data TestProtocol a = TestProtocol a
 
-instance (Store s) => Protocol (TestProtocol s) where
+testProtocol :: TestProtocol a
+testProtocol = TestProtocol undefined
+
+instance Protocol (TestProtocol a) where
 
     -- Look, really you want a test protocol that just stores strings against indexes.
     -- First step: parse/send the key as an Index (ie. int) not a string key
 
-    type Request (TestProtocol s) = ClientCommand Index (Value s)
-    type Response (TestProtocol s) = ClientResponse Index (Value s)
-    type Effects (TestProtocol s) = Free (LogStoreF [] (Value s)) -- (s, Response s)
+    type Request (TestProtocol a) = ClientCommand Index a
+    type Response (TestProtocol a) = ClientResponse Index a
+    type Effects (TestProtocol a) = Free (LogStoreF [] a)
 
-    step tp cmd = case cmd of
+    step p cmd = case cmd of
           CmdSet k v -> do
               store' k (Term 0) [v]
-              return (tp, Just $ RspSetOK k v)
+              return (p, Just $ RspSetOK k v)
 
           CmdGet k -> do
               res <- query' k
               let rsp = case res of
                             Just (v, _) -> RspGetOK k v
                             Nothing -> RspGetFail k
-              return (tp, Just rsp)
+              return (p, Just rsp)
 
-          CmdSleep n -> return (tp, Nothing)
+          CmdSleep n -> return (p, Nothing)
 
 ----------------------------------------------------------------------
 
 main :: IO ()
-main = do
-  let store = TestProtocol TS.empty
-  serveOn (PortNumber 44444) store TS.empty
-
+main = serveOn (PortNumber 44444) testProtocol TS.empty
