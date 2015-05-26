@@ -39,13 +39,13 @@ tableExists conn tblName = do
 
 createTables :: Sqlite.Connection -> IO ()
 createTables conn = do
-    schemaCreated <- tableExists conn "kv"
+    schemaCreated <- tableExists conn "store"
     unless schemaCreated $ do
         Sqlite.execute_ conn (Sqlite.Query $ T.concat
             [ "CREATE TABLE store ("
             , "ix    INTEGER PRIMARY KEY, "
-            , "value INTEGER"
-            , "term  INTEGER"
+            , "value INTEGER, "
+            , "term  INTEGER "
             , ")"
             ])
         Sqlite.execute_ conn (Sqlite.Query $ T.concat
@@ -74,12 +74,12 @@ runSqliteStore (Pure r) = return r
 runSqliteStore (Free x) = case x of
     CS.LogQuery ix cont -> do
         SqliteStore conn <- get
-        res <- liftIO $ Sqlite.query conn "select from store (value, term) where ix = (?)" [ix]
+        res <- liftIO $ Sqlite.query conn "select value, term from store where ix = (?)" [ix]
         runSqliteStore $ cont (second CS.Term <$> listToMaybe res)
     CS.LogStore ix (CS.Term term) xs next -> do
         SqliteStore conn <- get
         liftIO $ mapM_ (\(ixx, x) ->
-                           Sqlite.execute conn "insert into store (ix,value,term) values (?)" [ixx, x, term])
+                           Sqlite.execute conn "insert into store (ix,value,term) values (?,?,?)" [ixx, x, term])
                        (zip [ix..] (Fold.toList xs))
         runSqliteStore next
     CS.LogCommit ix next -> do

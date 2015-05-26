@@ -58,6 +58,24 @@ executable test-server
     , transformers >= 0.4
     , raft
 
+executable sqlite-server
+  hs-source-dirs:      examples
+  default-language:    Haskell2010
+  main-is:
+    SqliteServer.hs
+  build-depends:
+      base >= 4 && < 5
+    , cereal
+    , containers >=0.5 && <0.6
+    , bytestring
+    , free
+    , mtl >= 2.0
+    , network
+    , sqlite-simple >= 0.4 && <1.0
+    , text
+    , transformers >= 0.4
+    , raft
+
 executable raft-client
   hs-source-dirs:      examples
   default-language:    Haskell2010
