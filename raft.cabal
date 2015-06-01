@@ -23,6 +23,7 @@ library
   exposed-modules:
     Raft.Protocol
     Raft.Types
+    Raft.Store.Volatile
     Network.Protocol
     Network.Protocol.Server
     Network.Stream

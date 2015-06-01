@@ -5,9 +5,9 @@ import Network
 import Network.Protocol.Server
 
 import TestProtocol
-import qualified TestStore as TS
+import Raft.Store.Volatile
 
 ----------------------------------------------------------------------
 
 main :: IO ()
-main = serveOn (PortNumber 44444) testProtocol TS.empty
+main = serveOn (PortNumber 44444) testProtocol empty
