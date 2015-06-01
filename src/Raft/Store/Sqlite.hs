@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module SqliteStore (
+module Raft.Store.Sqlite (
     SqliteStore(..)
   , open
 ) where

@@ -23,6 +23,7 @@ library
   exposed-modules:
     Raft.Protocol
     Raft.Types
+    Raft.Store.Sqlite
     Raft.Store.Volatile
     Network.Protocol
     Network.Protocol.Server
@@ -40,6 +41,7 @@ library
     , free
     , mtl >= 2.0
     , network
+    , sqlite-simple >= 0.4 && <1.0
     , text
     , transformers >= 0.4
 

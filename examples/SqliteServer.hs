@@ -4,10 +4,11 @@ import Network
 
 import Network.Protocol.Server
 
+import Raft.Store.Sqlite
+
 import TestProtocol
-import qualified SqliteStore as SS
 
 ----------------------------------------------------------------------
 
 main :: IO ()
-main = SS.open >>= serveOn (PortNumber 44444) testProtocol
+main = open >>= serveOn (PortNumber 44444) testProtocol
