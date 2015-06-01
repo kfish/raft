@@ -23,8 +23,8 @@ import qualified Data.Text as T
 
 import qualified Database.SQLite.Simple as Sqlite
 
-import qualified Consensus.Raft as CS
-import qualified Consensus.Types as CS
+import qualified Raft.Protocol as CS
+import qualified Raft.Types as CS
 
 ----------------------------------------------------------------------
 

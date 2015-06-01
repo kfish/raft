@@ -23,7 +23,7 @@ import Network.Stream.Socket as Stream
 import Network.Stream.Types as Stream
 
 import Control.Monad.Free
-import Consensus.Types(Store(..), StoreIO(..), LogStoreF)
+import Raft.Types(Store(..), StoreIO(..), LogStoreF)
 
 ----------------------------------------------------------------------
 

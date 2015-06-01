@@ -8,7 +8,7 @@ import ClientTypes
 
 import Network.Protocol
 
-import Consensus.Types
+import Raft.Types
 
 ----------------------------------------------------------------------
 

@@ -21,8 +21,8 @@ library
   default-language:    Haskell2010
 
   exposed-modules:
-    Consensus.Types
-    Consensus.Raft
+    Raft.Protocol
+    Raft.Types
     Network.Protocol
     Network.Protocol.Server
     Network.Stream

@@ -9,7 +9,7 @@ https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf
 
 -}
 
-module Consensus.Raft (
+module Raft.Protocol (
 
 ) where
 
@@ -23,7 +23,7 @@ import qualified Data.Foldable as Fold
 
 import Network.Protocol
 
-import qualified Consensus.Types as Consensus
+import qualified Raft.Types as Raft
 
 ----------------------------------------------------------------------
 
@@ -32,10 +32,10 @@ data RaftPersistentState s = RaftPersistentState
 
     -- | Latest term server has seen (initialized to 0 on first boot,
     -- increases monotonically
-      currentTerm :: Consensus.Term
+      currentTerm :: Raft.Term
 
     -- candidateId that received vote in current term (or Nothing if none)
-    , votedFor :: Maybe Consensus.Identifier
+    , votedFor :: Maybe Raft.Identifier
 
     -- log entries; each entry contains command for state machine, and term
     -- when entry was received by leader (first index is 1)
@@ -47,11 +47,11 @@ data RaftVolatileState = RaftVolatileState
 
     -- | Index of highest log entry known to be committed (initialized to 0,
     -- increases monotonically)
-      commitIndex :: Consensus.Index
+      commitIndex :: Raft.Index
 
     -- | Index of highest log entry applied to state machine (initalized to 0,
     -- increases monotonically)
-    , lastApplied :: Consensus.Index
+    , lastApplied :: Raft.Index
     }
 
 data RaftLeaderVolatileState = RaftLeaderVolatileState
@@ -59,11 +59,11 @@ data RaftLeaderVolatileState = RaftLeaderVolatileState
 
     -- For each server, index of the next log entry to send to that server
     -- (initialized to leader last log index + 1)
-      nextIndex :: Map Consensus.Identifier Int
+      nextIndex :: Map Raft.Identifier Int
 
     -- For each server, index of highest log entry known to be replicated on
     -- server (initialized to 0, increases monotonically)
-    , matchIndex :: Map Consensus.Identifier Int
+    , matchIndex :: Map Raft.Identifier Int
     }
 
 data Raft s = RaftLeader (RaftPersistentState s) RaftVolatileState RaftLeaderVolatileState
@@ -82,28 +82,28 @@ pstate (RaftCandidate rps _) = rps
 data AppendEntries s = AppendEntries
     {
     -- Leader's term
-      aeTerm :: Consensus.Term
+      aeTerm :: Raft.Term
 
     -- So follower can redirect clients
-    , leaderId :: Consensus.Identifier
+    , leaderId :: Raft.Identifier
 
     -- Index of log entry immediately preceding new ones
-    , prevLogIndex :: Consensus.Index
+    , prevLogIndex :: Raft.Index
 
     -- Term of prevLogIndex entry
-    , prevLogTerm :: Consensus.Term
+    , prevLogTerm :: Raft.Term
 
     -- Log entries to store (empty for heartbeat, may send more than one
     -- for efficiency
-    -- , entries :: t (Consensus.Value s)
-    , entries :: [Consensus.Value s]
+    -- , entries :: t (Raft.Value s)
+    , entries :: [Raft.Value s]
 
     -- Leader's commitIndex
-    , leaderCommit :: Consensus.Index
+    , leaderCommit :: Raft.Index
     }
 
-instance ( Consensus.Store s
-         , Serialize (Consensus.Value s)
+instance ( Raft.Store s
+         , Serialize (Raft.Value s)
          ) => Serialize (AppendEntries s) where
     put AppendEntries{..} = do
       put aeTerm
@@ -117,7 +117,7 @@ instance ( Consensus.Store s
 data AppendEntriesResponse = AppendEntriesResponse
     {
     -- currentTerm, for leader to update itself
-      aerTerm :: Consensus.Term
+      aerTerm :: Raft.Term
 
     -- True if follower contained entry matching prevLogIndex and prevLogTerm
     , aerSuccess :: Bool
@@ -132,16 +132,16 @@ instance Serialize AppendEntriesResponse where
 data RequestVote = RequestVote
     {
     -- Candidate's term
-      rvTerm :: Consensus.Term
+      rvTerm :: Raft.Term
 
     -- Candidate requesting vote
-    , candidateId :: Consensus.Identifier
+    , candidateId :: Raft.Identifier
 
     -- Index of candidate's last log entry
-    , lastLogIndex :: Consensus.Index
+    , lastLogIndex :: Raft.Index
 
     -- Term of candidate's last log entry
-    , lastLogTerm :: Consensus.Term
+    , lastLogTerm :: Raft.Term
     }
 
 instance Serialize RequestVote where
@@ -155,7 +155,7 @@ instance Serialize RequestVote where
 data RequestVoteResponse = RequestVoteResponse
     {
     -- currentTerm, for candidate to update itself
-      rvrTerm :: Consensus.Term
+      rvrTerm :: Raft.Term
 
     -- True means candidate received vote
     , voteGranted :: Bool
@@ -175,12 +175,12 @@ data RaftRequest s = AE (AppendEntries s)
 data RaftResponse = AER AppendEntriesResponse
                   | RVR RequestVoteResponse
 
-instance (Consensus.Store s) => Protocol (Raft s) where
+instance (Raft.Store s) => Protocol (Raft s) where
     type Request (Raft s) = RaftRequest s
 
     type Response (Raft s) = RaftResponse
 
-    type Effects (Raft s) = Free (Consensus.LogStoreF [] (Consensus.Value s))
+    type Effects (Raft s) = Free (Raft.LogStoreF [] (Raft.Value s))
 
     step receiver (AE AppendEntries{..})
         -- Reply False if term < currentTerm
@@ -192,7 +192,7 @@ instance (Consensus.Store s) => Protocol (Raft s) where
             -- Reply False if log doesn't contain an entry at prevLogIndex
             -- whose term matches prevLogTerm
 
-            t <- fmap snd <$> Consensus.query' prevLogIndex
+            t <- fmap snd <$> Raft.query' prevLogIndex
 
             if (t /= Just prevLogTerm)
               then return (receiver, Just . AER$ AppendEntriesResponse currentTerm False)
@@ -201,10 +201,10 @@ instance (Consensus.Store s) => Protocol (Raft s) where
             -- If an existing entry conflicts with a new one (same index but
             -- different terms), delete the existing entry and all that
             -- follow it.
-                  when (t /= Just aeTerm) $ Consensus.truncate' prevLogIndex
+                  when (t /= Just aeTerm) $ Raft.truncate' prevLogIndex
 
                   -- Append any new entries not already in the log
-                  Consensus.store' (prevLogIndex+1) aeTerm entries
+                  Raft.store' (prevLogIndex+1) aeTerm entries
 {-
         -- If leaderCommit > commitIndex, set commitIndex = min (leaderCommit, index of last new entry)
 

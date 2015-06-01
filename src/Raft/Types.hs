@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Consensus.Types (
+module Raft.Types (
       Identifier
     , Index
     , Term(..)

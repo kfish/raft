@@ -16,8 +16,8 @@ import qualified Data.Foldable as Fold
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import qualified Consensus.Raft as CS
-import qualified Consensus.Types as CS
+import qualified Raft.Protocol as CS
+import qualified Raft.Types as CS
 
 ----------------------------------------------------------------------
 
