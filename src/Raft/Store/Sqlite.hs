@@ -62,9 +62,9 @@ data SqliteStore = SqliteStore {
 
 type SqliteStoreM = StateT SqliteStore IO
 
-open :: IO SqliteStore
-open = do
-      conn <- Sqlite.open "test.db"
+open :: FilePath -> IO SqliteStore
+open path = do
+      conn <- Sqlite.open path
       createTables conn
       return (SqliteStore conn)
 

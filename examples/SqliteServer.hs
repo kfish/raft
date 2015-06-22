@@ -11,4 +11,4 @@ import TestProtocol
 ----------------------------------------------------------------------
 
 main :: IO ()
-main = open >>= serveOn (PortNumber 44444) testProtocol
+main = open "test.db" >>= serveOn (PortNumber 44444) testProtocol
