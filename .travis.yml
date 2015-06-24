@@ -1,5 +1,8 @@
 language: haskell
 
+ghc:
+  - 7.8
+
 install:
   - cabal install tasty-hunit
   - cabal install --enable-tests
