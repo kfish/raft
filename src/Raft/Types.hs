@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module Raft.Types (
       Identifier
@@ -64,12 +65,7 @@ data LogStoreF t entry next
     | LogCommit Index next
     -- | Delete a given entry and all that follow it
     | LogTruncate Index next
-
-instance Functor (LogStoreF t entry) where
-    fmap f (LogQuery ix cont)              = LogQuery ix (f . cont)
-    fmap f (LogStore ix term entries next) = LogStore ix term entries (f next)
-    fmap f (LogCommit ix next)             = LogCommit ix (f next)
-    fmap f (LogTruncate ix next)           = LogTruncate ix (f next)
+    deriving Functor
 
 query' :: MonadFree (LogStoreF t entry) m => Index -> m (Maybe (entry, Term))
 query' ix = liftF (LogQuery ix id)
