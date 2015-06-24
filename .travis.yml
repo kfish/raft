@@ -5,5 +5,6 @@ ghc:
 
 install:
   - cabal install tasty-hunit
+  - cabal install tasty-quickcheck
   - cabal install --enable-tests
 
