@@ -73,14 +73,17 @@ runSqliteStore :: (Fold.Foldable t)
 runSqliteStore (Pure r) = return r
 runSqliteStore (Free x) = case x of
     CS.LogQuery ix cont -> do
+        liftIO $ putStrLn ("runSqliteStore: Query " ++ show ix)
         SqliteStore conn <- get
         res <- liftIO $ Sqlite.query conn "select value, term from store where ix = (?)" [ix]
         runSqliteStore $ cont (second CS.Term <$> listToMaybe res)
     CS.LogStore ix (CS.Term term) xs next -> do
         SqliteStore conn <- get
+        liftIO $ putStrLn ("runSqliteStore: Store ..." ++ show ix)
         liftIO $ mapM_ (\(ixx, x) ->
                            Sqlite.execute conn "insert into store (ix,value,term) values (?,?,?)" [ixx, x, term])
                        (zip [ix..] (Fold.toList xs))
+        liftIO $ putStrLn ("runSqliteStore: Store done" ++ show ix)
         runSqliteStore next
     CS.LogCommit ix next -> do
         SqliteStore conn <- get

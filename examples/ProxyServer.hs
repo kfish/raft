@@ -1,14 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Network
 
 import Network.Protocol.Server
+import Network.Stream.Types
 
-import Raft.Store.Sqlite
+import ProxyStore
 
 import TestProtocol
 
 ----------------------------------------------------------------------
 
 main :: IO ()
-main = open "test.db" >>= serveOn (PortNumber 44445) testProtocol
+main = open (Endpoint "localhost" 44445) >>=
+       serveOn (PortNumber 44444) testProtocol
