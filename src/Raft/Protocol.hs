@@ -2,6 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 {-
 
@@ -12,6 +13,8 @@ https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf
 module Raft.Protocol (
 
 ) where
+
+import GHC.Generics
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Free
@@ -101,18 +104,11 @@ data AppendEntries s = AppendEntries
     -- Leader's commitIndex
     , leaderCommit :: Raft.Index
     }
+    deriving Generic
 
 instance ( Raft.Store s
          , Serialize (Raft.Value s)
-         ) => Serialize (AppendEntries s) where
-    put AppendEntries{..} = do
-      put aeTerm
-      put leaderId
-      put prevLogIndex
-      put prevLogTerm
-      Fold.mapM_ put entries
-      put leaderCommit
-    get = AppendEntries <$> get <*> get <*> get <*> get <*> get <*> get
+         ) => Serialize (AppendEntries s)
 
 data AppendEntriesResponse = AppendEntriesResponse
     {
@@ -122,12 +118,9 @@ data AppendEntriesResponse = AppendEntriesResponse
     -- True if follower contained entry matching prevLogIndex and prevLogTerm
     , aerSuccess :: Bool
     }
+    deriving Generic
 
-instance Serialize AppendEntriesResponse where
-    put AppendEntriesResponse{..} = do
-      put aerTerm
-      put aerSuccess
-    get = AppendEntriesResponse <$> get <*> get
+instance Serialize AppendEntriesResponse
 
 data RequestVote = RequestVote
     {
@@ -143,14 +136,9 @@ data RequestVote = RequestVote
     -- Term of candidate's last log entry
     , lastLogTerm :: Raft.Term
     }
+    deriving Generic
 
-instance Serialize RequestVote where
-    put RequestVote{..} = do
-      put rvTerm
-      put candidateId
-      put lastLogIndex
-      put lastLogTerm
-    get = RequestVote <$> get <*> get <*> get <*> get
+instance Serialize RequestVote
 
 data RequestVoteResponse = RequestVoteResponse
     {
@@ -160,12 +148,9 @@ data RequestVoteResponse = RequestVoteResponse
     -- True means candidate received vote
     , voteGranted :: Bool
     }
+    deriving Generic
 
-instance Serialize RequestVoteResponse where
-    put RequestVoteResponse{..} = do
-      put rvrTerm
-      put voteGranted
-    get = RequestVoteResponse <$> get <*> get
+instance Serialize RequestVoteResponse
 
 ----------------------------------------------------------------------
 
