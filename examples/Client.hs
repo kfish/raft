@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
@@ -35,6 +36,7 @@ import System.Environment (getArgs, getEnvironment)
 import System.FilePath ((</>))
 import System.IO
 
+import Raft.Types as CS
 import ClientTypes
 
 data Client k v = Client
@@ -49,7 +51,7 @@ data Command k v = Command
     }
 
 type ClientKey = Int
-type ClientValue = Int
+type ClientValue = (Int, CS.Term)
 
 emptyClient :: Client ClientKey ClientValue
 emptyClient = Client Nothing
@@ -201,13 +203,13 @@ cmdGet = Command [("get", parser)]
 cmdSet :: Command ClientKey ClientValue
 cmdSet = Command [("set", parser)]
     [("set", "Request to set a value in the log")]
-    [("set 7=7", CmdSet 7 7)]
+    [("set 7=7", CmdSet 7 (7, CS.Term 0))]
   where
     parser = CmdSet <$ skipSpace
                  -- <*> (takeWhile1 (\x -> not (isSpace x) && x /= '=')
                  <*> (decimal
                          <* skipMany space <* char '=' <* skipMany space)
-                 <*> decimal
+                 <*> ((, CS.Term 0) <$> decimal)
                  -- <*> takeWhile1 (not . isSpace)
 
 cmdSleep :: Command ClientKey ClientValue

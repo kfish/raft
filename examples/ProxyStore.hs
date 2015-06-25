@@ -48,7 +48,7 @@ runProxyStore (Free x) = case x of
         val <- liftIO $ do
           putStrLn ("Query value at index " ++ show ix)
           Stream.runPut origin $
-            Serialize.put (CmdGet ix :: ClientCommand CS.Index Int)
+            Serialize.put (CmdGet ix :: ClientCommand CS.Index (Int, CS.Term))
           putStrLn ("Waiting on origin response ...")
           (rsp :: ClientResponse CS.Index (Int, CS.Term)) <- Stream.runGet origin Serialize.get
           -- (rsp :: ClientResponse CS.Index Int) <- Stream.runGet origin Serialize.get
