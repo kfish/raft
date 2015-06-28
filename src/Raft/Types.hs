@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Raft.Types (
       Identifier
@@ -36,11 +37,7 @@ type Index = Int
 -- Term
 
 newtype Term = Term Int
-    deriving (Show, Eq, Ord)
-
-instance Serialize Term where
-    put (Term x) = put x
-    get = Term <$> get
+    deriving (Show, Eq, Ord, Serialize)
 
 class HasTerm a where
     termOf :: a -> Term
