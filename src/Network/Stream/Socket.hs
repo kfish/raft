@@ -6,6 +6,7 @@ module Network.Stream.Socket
     ) where
 
 import           Control.Monad.Catch (MonadMask, bracket, bracketOnError)
+import           Control.Monad.Fail (MonadFail)
 import           Control.Monad.IO.Class (MonadIO(..))
 import qualified Data.Text as T
 import           Network (PortID(PortNumber))
@@ -14,7 +15,7 @@ import           Network.Stream.Types
 
 ------------------------------------------------------------------------
 
-bracketSocket :: (MonadMask m, MonadIO m) => Endpoint -> (S.Socket -> m a) -> m a
+bracketSocket :: (MonadFail m, MonadMask m, MonadIO m) => Endpoint -> (S.Socket -> m a) -> m a
 bracketSocket endpoint = bracket (connectSocket endpoint) closeSocket
 
 closeSocket :: MonadIO m => S.Socket -> m ()
@@ -22,7 +23,7 @@ closeSocket = liftIO . S.sClose
 
 ------------------------------------------------------------------------
 
-connectSocket :: (MonadMask m, MonadIO m) => Endpoint -> m S.Socket
+connectSocket :: (MonadFail m, MonadMask m, MonadIO m) => Endpoint -> m S.Socket
 connectSocket endpoint = do
     (addr:_) <- liftIO $ S.getAddrInfo (Just hints) (Just host) (Just port)
     bracketOnError (newSocket addr) closeSocket $ \sock -> do
