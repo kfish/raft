@@ -32,16 +32,16 @@ library
     Network.Stream.Types
 
   build-depends:
-      base >=4.7 && <4.8
+      base >=4.7
     , attoparsec
     , cereal
     , bytestring
-    , containers >=0.5 && <0.6
+    , containers >=0.5
     , exceptions           >= 0.6
     , free
     , mtl >= 2.0
     , network
-    , sqlite-simple >= 0.4 && <1.0
+    , sqlite-simple >= 0.4
     , text
     , transformers >= 0.4
 
@@ -53,7 +53,7 @@ executable test-server
   build-depends:
       base >= 4 && < 5
     , cereal
-    , containers >=0.5 && <0.6
+    , containers >=0.5
     , bytestring
     , free
     , mtl >= 2.0
@@ -69,12 +69,12 @@ executable sqlite-server
   build-depends:
       base >= 4 && < 5
     , cereal
-    , containers >=0.5 && <0.6
+    , containers >=0.5
     , bytestring
     , free
     , mtl >= 2.0
     , network
-    , sqlite-simple >= 0.4 && <1.0
+    , sqlite-simple >= 0.4
     , text
     , transformers >= 0.4
     , raft
@@ -89,7 +89,7 @@ executable raft-client
     , attoparsec
     , cereal
     , bytestring
-    , containers >=0.5 && <0.6
+    , containers >=0.5
     , filepath
     , haskeline
     , mtl >= 2.0
@@ -106,8 +106,8 @@ test-suite test
   main-is:
     test.hs
   build-depends:
-      base >= 4 && < 5
-    , containers >=0.5 && <0.6
+      base >= 4
+    , containers >=0.5
     , free
     , mtl >= 2.0
     , transformers >= 0.4
